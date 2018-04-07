@@ -17,7 +17,7 @@ function module:all()
   return records
 end
 
-function module:find_by(attrs)
+function module:where(attrs, addendum)
   local db,_,err = sqlite.open(self._.dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
 
@@ -30,26 +30,44 @@ function module:find_by(attrs)
   -- Strip leading 'AND'
   attrString = attrString:match('^ AND (.*)')
 
-  local attrs
-  for row in db:nrows(string.format("SELECT * FROM %s WHERE %s", self.tableName, attrString)) do
-    -- Grab the first one (this is a single read, not a group read)
-    attrs = row
-    break
+  -- Append any additional constraints
+  if addendum ~= nil then
+    local addendumType = type(addendum)
+    if addendumType == 'string' then
+      attrString = string.format('%s %s', attrString, addendum)
+    elseif addendumType == 'table' then
+      local addendumString = ''
+      for k,v in pairs(addendum) do
+        k = k:gsub('_', ' ') -- Unchain a multieword key, i.e. 'group_by' => 'group by'
+        addendumString = string.format('%s %s %s', addendumString, k, v)
+      end
+      attrString = string.format('%s %s', attrString, addendumString)
+    end
+  end
+
+  local records = {}
+  local queryString = string.format("SELECT * FROM %s WHERE %s", self.tableName, attrString)
+
+  -- DEBUG
+  print(queryString)
+  -- DEBUG
+
+  for row in db:nrows(queryString) do
+    table.insert(records, self:new(row))
   end
 
   db:close()
 
-  if table.isEmpty(attrs) then
-    return nil
-  else
-    return self:new(attrs)
-  end
+  return records
+end
+
+function module:find_by(attrs)
+  return module:where(attrs, {limit = 1})[1]
 end
 
 function module:find(id)
   return module:find_by{id = id}
 end
-
 
 -------
 return module
