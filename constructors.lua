@@ -18,25 +18,37 @@ local function _insertNewRow(newRecord)
   local db,_,err = sqlite.open(newRecord._.dbFilename)
   assert(db, err)
 
+  local insertList = 'id'
   local queryParams = ':id'
   for columnName, _ in pairs(newRecord.columns) do
     if columnName ~= 'id' then
+      insertList = string.format('%s, %s', insertList, columnName)
       queryParams = string.format('%s, :%s', queryParams, columnName)
     end
   end
+  print(queryParams)
   local queryString = string.format(
     [[
-      INSERT INTO %s
+      INSERT INTO %s(%s)
       VALUES(%s)
     ]],
     newRecord.tableName,
+    insertList,
     queryParams)
 
+  for attr,val in pairs(newRecord) do
+    if type(val) == 'string' then val = string.format("'%s'", val) end
+    queryString = queryString:gsub(':'..attr, val)
+  end
+
+  print(queryString)
   local statement = db:prepare(queryString)
   assert(statement, db:error_message())
 
-  -- TODO Fix this: it's order agnostic and shouldn't be.
-  statement:bind_names(newRecord)
+  -- TODO find out why this seems to be doing it wrong
+  -- statement:bind_names(newRecord)
+
+  print(statement:get_names())
 
   local res = statement:step()
   assert(res == sqlite.DONE, db:error_message())
@@ -46,6 +58,8 @@ local function _insertNewRow(newRecord)
 end
 
 function module:new(valuesByField)
+  valuesByField.id = valuesByField.id or uuid()
+
   return setmetatable(valuesByField, {
     __index = self,
     __tostring = function(self, curIndentLvl)
@@ -63,8 +77,6 @@ end
 
 function module:create(valuesByField)
   local attrs = table.copy(valuesByField)
-  attrs.id = uuid()
-
   local newRecord = self:new(attrs)
   assert(_insertNewRow(newRecord))
 
