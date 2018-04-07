@@ -40,6 +40,7 @@ local function _insertNewRow(newRecord)
 
   local res = statement:step()
   assert(res == sqlite.DONE, db:error_message())
+  statement:finalize()
   db:close()
   return res
 end
