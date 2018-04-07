@@ -17,25 +17,6 @@ function module:all()
   return records
 end
 
-function module:find(id)
-  local db,_,err = sqlite.open(self._.dbFilename, sqlite.OPEN_READONLY)
-  assert(db, err)
-
-  local attrs
-  for row in db:nrows(string.format("SELECT * FROM %s WHERE id = '%s'", self.tableName, id)) do
-    -- Grab the first one (should be the only one, cuz id == primary key)
-    attrs = row
-    break
-  end
-  db:close()
-
-  if table.isEmpty(attrs) then
-    return nil
-  else
-    return self:new(attrs)
-  end
-end
-
 function module:find_by(attrs)
   local db,_,err = sqlite.open(self._.dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
@@ -64,6 +45,11 @@ function module:find_by(attrs)
     return self:new(attrs)
   end
 end
+
+function module:find(id)
+  return module:find_by{id = id}
+end
+
 
 -------
 return module
