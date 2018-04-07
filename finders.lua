@@ -36,5 +36,34 @@ function module:find(id)
   end
 end
 
+function module:find_by(attrs)
+  local db,_,err = sqlite.open(self._.dbFilename, sqlite.OPEN_READONLY)
+  assert(db, err)
+
+  local attrString = ''
+  for attr,val in pairs(attrs) do
+    -- Wrap strings in extra quotes for the query
+    if type(val) == 'string' then val = string.format("'%s'", val) end
+    attrString = string.format('%s AND %s = %s', attrString, attr, val)
+  end
+  -- Strip leading 'AND'
+  attrString = attrString:match('^ AND (.*)')
+
+  local attrs
+  for row in db:nrows(string.format("SELECT * FROM %s WHERE %s", self.tableName, attrString)) do
+    -- Grab the first one (this is a single read, not a group read)
+    attrs = row
+    break
+  end
+
+  db:close()
+
+  if table.isEmpty(attrs) then
+    return nil
+  else
+    return self:new(attrs)
+  end
+end
+
 -------
 return module
