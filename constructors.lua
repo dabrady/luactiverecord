@@ -26,7 +26,8 @@ local function _insertNewRow(newRecord)
       queryParams = string.format('%s, :%s', queryParams, columnName)
     end
   end
-  print(queryParams)
+
+  -- print(queryParams)
   local queryString = string.format(
     [[
       INSERT INTO %s(%s)
@@ -48,7 +49,7 @@ local function _insertNewRow(newRecord)
   -- TODO find out why this seems to be doing it wrong
   -- statement:bind_names(newRecord)
 
-  print(statement:get_names())
+  -- print(statement:get_names())
 
   local res = statement:step()
   assert(res == sqlite.DONE, db:error_message())
