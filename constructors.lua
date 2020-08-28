@@ -58,9 +58,10 @@ local function _insertNewRow(newRecord)
 end
 
 function module:new(valuesByField)
-  valuesByField.id = valuesByField.id or uuid()
+  local attrs = table.copy(valuesByField) -- don't reference our input!
+  attrs.id = attrs.id or uuid()
 
-  return setmetatable(valuesByField, {
+  return setmetatable(attrs, {
     __index = self,
     __tostring = function(self, curIndentLvl)
       local function trimLeadingWhitespace(s)
@@ -75,12 +76,13 @@ function module:new(valuesByField)
   })
 end
 
-function module:create(valuesByField)
-  local attrs = table.copy(valuesByField)
-  local newRecord = self:new(attrs)
-  assert(_insertNewRow(newRecord))
+function module:save()
+  assert(_insertNewRow(self))
+  return self
+end
 
-  return newRecord
+function module:create(valuesByField)
+  return self:new(valuesByField):save()
 end
 
 -------
