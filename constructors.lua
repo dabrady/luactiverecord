@@ -4,6 +4,7 @@ assert(type(module) == 'table', 'must provide a table to extend')
 
 local sqlite = require('hs.sqlite3')
 require('lua-utils/table')
+local loadmodule = require('lua-utils/loadmodule')
 
 local uuid = (function()
   local uuidGenerator = require('uuid')
@@ -17,6 +18,10 @@ end)()
 local function _insertNewRow(newRecord)
   local db,_,err = sqlite.open(newRecord._.dbFilename)
   assert(db, err)
+  -- Attach pragma helpers
+  loadmodule('pragmas', getmetatable(db))
+
+  db:enable_foreign_key_constraints()
 
   local insertList = 'id'
   local queryParams = ':id'
