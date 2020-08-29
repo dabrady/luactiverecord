@@ -18,7 +18,7 @@ local function _createTable(newActiveRecord, columns)
   local columnDefinitions = string.format('id %s\n', columns.id)
   for columnName, constraints in pairs(columns) do
     if columnName ~= 'id' then
-      columnDefinitions = string.format('%s,%s %s\n', columnDefinitions, columnName, constraints)
+      columnDefinitions = string.format('%s        ,%s %s\n', columnDefinitions, columnName, constraints)
     end
   end
   local queryString = string.format(
@@ -32,6 +32,8 @@ local function _createTable(newActiveRecord, columns)
     newActiveRecord.tableName,
     columnDefinitions,
     newActiveRecord.tableName)
+
+  print('\n'..queryString)
 
   local statement = db:prepare(queryString)
   assert(statement, db:error_message())
