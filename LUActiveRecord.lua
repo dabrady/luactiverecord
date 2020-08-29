@@ -20,7 +20,17 @@ local function _createTable(args)
   local name = args.name
   local dbFilename = args.db
   local columns = args.columns
+  local references = args.references
   local drop_first = args.drop_first
+
+  if references then
+    -- Add foreign key constraints
+    -- TODO(dabrady) Research need for index creation here
+    for column, reference_table in pairs(references) do
+      local constraints = columns[column]
+      columns[column] = constraints..string.format(' REFERENCES %s', reference_table)
+    end
+  end
 
   local db,_,err = sqlite.open(dbFilename, sqlite.OPEN_READWRITE + sqlite.OPEN_CREATE)
   assert(db, err)
@@ -91,6 +101,7 @@ function LUActiveRecord.new(args)
   local tableName = assert_type(args.tableName, 'string')
   local dbFilename = assert_type(args.dbFilename or MAIN_DATABASE_FILENAME, 'string')
   local columns = assert_type(args.columns, 'table')
+  local references = assert_type(args.references, '?table')
   local recreate = assert_type(args.recreate, '?boolean')
   print("Constructing new LUActiveRecord: "..tableName)
 
@@ -111,6 +122,7 @@ function LUActiveRecord.new(args)
     name = tableName,
     db = dbFilename,
     columns = columns,
+    references = references,
     drop_first = recreate
   }
 
