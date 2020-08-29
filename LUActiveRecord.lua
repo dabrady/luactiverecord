@@ -10,13 +10,18 @@ local sqlite = require('hs.sqlite3')
 local loadmodule = require('lua-utils/loadmodule')
 require('lua-utils/table')
 
-local function _createTable(newActiveRecord, columns, recreate)
-  local db,_,err = sqlite.open(newActiveRecord._.dbFilename, sqlite.OPEN_READWRITE + sqlite.OPEN_CREATE)
+local function _createTable(args)
+  local name = args.name
+  local dbFilename = args.db
+  local columns = args.columns
+  local drop_first = args.drop_first
+
+  local db,_,err = sqlite.open(dbFilename, sqlite.OPEN_READWRITE + sqlite.OPEN_CREATE)
   assert(db, err)
 
-  if recreate then
-    print('Table recreation specified: dropping "'..newActiveRecord.tableName..'"')
-    db:exec('DROP TABLE '..newActiveRecord.tableName)
+  if drop_first then
+    print('Table recreation specified: dropping "'..name..'"')
+    db:exec('DROP TABLE '..name)
   end
 
   -- Build query string
@@ -34,9 +39,9 @@ local function _createTable(newActiveRecord, columns, recreate)
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_primary_key ON %s(id);
     ]],
-    newActiveRecord.tableName,
+    name,
     columnDefinitions,
-    newActiveRecord.tableName)
+    name)
 
   print('\n'..queryString)
 
@@ -100,7 +105,12 @@ function LUActiveRecord.new(args)
   }
 
   -- Create the backing table for this new record type.
-  _createTable(newActiveRecord, columns, recreate)
+  _createTable{
+    name = tableName,
+    db = dbFilename,
+    columns = columns,
+    drop_first = recreate
+  }
 
   loadmodule('constructors', newActiveRecord)
   loadmodule('finders', newActiveRecord)
