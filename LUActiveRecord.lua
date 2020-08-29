@@ -10,9 +10,14 @@ local sqlite = require('hs.sqlite3')
 local loadmodule = require('lua-utils/loadmodule')
 require('lua-utils/table')
 
-local function _createTable(newActiveRecord, columns)
+local function _createTable(newActiveRecord, columns, recreate)
   local db,_,err = sqlite.open(newActiveRecord._.dbFilename, sqlite.OPEN_READWRITE + sqlite.OPEN_CREATE)
   assert(db, err)
+
+  if recreate then
+    print('Table recreation specified: dropping "'..newActiveRecord.tableName..'"')
+    db:exec('DROP TABLE '..newActiveRecord.tableName)
+  end
 
   -- Build query string
   local columnDefinitions = string.format('id %s\n', columns.id)
@@ -74,10 +79,12 @@ function LUActiveRecord.new(args)
   local tableName = args.tableName
   local dbFilename = args.dbFilename or MAIN_DATABASE_FILENAME
   local columns = args.columns
+  local recreate = args.recreate or false
 
   assert(type(tableName) == 'string', 'tableName must be a string')
-  assert(type(columns) == 'table', 'columns must be a table')
   assert(type(dbFilename) == 'string', 'dbFilename must be a string')
+  assert(type(columns) == 'table', 'columns must be a table')
+  assert(type(recreate) == 'boolean', 'recreate must be a boolean')
   print("Constructing new LUActiveRecord: "..tableName)
 
   -- Ensure row ID is a UUID
@@ -93,7 +100,7 @@ function LUActiveRecord.new(args)
   }
 
   -- Create the backing table for this new record type.
-  _createTable(newActiveRecord, columns)
+  _createTable(newActiveRecord, columns, recreate)
 
   loadmodule('constructors', newActiveRecord)
   loadmodule('finders', newActiveRecord)
