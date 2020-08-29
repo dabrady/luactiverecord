@@ -8,7 +8,13 @@ package.path = string.format(
 
 local sqlite = require('hs.sqlite3')
 local loadmodule = require('lua-utils/loadmodule')
+
+local assertions = require('lua-utils/assertions')
+assert_type = assertions.assert_type
+
 require('lua-utils/table')
+
+-------
 
 local function _createTable(args)
   local name = args.name
@@ -80,16 +86,12 @@ function LUActiveRecord.setMainDatabase(db)
 end
 
 function LUActiveRecord.new(args)
-  assert(type(args) == 'table', 'expected table, given '..type(args))
-  local tableName = args.tableName
-  local dbFilename = args.dbFilename or MAIN_DATABASE_FILENAME
-  local columns = args.columns
-  local recreate = args.recreate or false
+  assert_type(args, 'table')
 
-  assert(type(tableName) == 'string', 'tableName must be a string')
-  assert(type(dbFilename) == 'string', 'dbFilename must be a string')
-  assert(type(columns) == 'table', 'columns must be a table')
-  assert(type(recreate) == 'boolean', 'recreate must be a boolean')
+  local tableName = assert_type(args.tableName, 'string')
+  local dbFilename = assert_type(args.dbFilename or MAIN_DATABASE_FILENAME, 'string')
+  local columns = assert_type(args.columns, 'table')
+  local recreate = assert_type(args.recreate, '?boolean')
   print("Constructing new LUActiveRecord: "..tableName)
 
   -- Ensure row ID is a UUID
