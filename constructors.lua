@@ -27,7 +27,7 @@ local function _insertNewRow(newRecord)
 
   local insertList = 'id'
   local queryParams = ':id'
-  for columnName, _ in pairs(newRecord.columns) do
+  for _,columnName in ipairs(newRecord.__metadata.columns) do
     if columnName ~= 'id' then
       insertList = string.format('%s, %s', insertList, columnName)
       queryParams = string.format('%s, :%s', queryParams, columnName)
@@ -107,7 +107,7 @@ function module:new(valuesByField)
       -- Store relevant metatable from our model on individual records.
       __metadata = {
         dbFilename = metadata.dbFilename,
-        columns = self.columns
+        columns = table.keys(self.schema)
       },
 
       -- Hold onto the original set of attributes.

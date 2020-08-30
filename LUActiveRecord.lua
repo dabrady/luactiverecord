@@ -18,7 +18,7 @@ require('lua-utils/table')
 local function _createTable(args)
   local name = args.name
   local dbFilename = args.db
-  local columns = args.columns
+  local schema = args.schema
   local references = args.references
   local drop_first = args.drop_first
 
@@ -26,8 +26,8 @@ local function _createTable(args)
     -- Add foreign key constraints
     -- TODO(dabrady) Research need for index creation here
     for column, reference_table in pairs(references) do
-      local constraints = columns[column]
-      columns[column] = constraints..string.format(' REFERENCES %s', reference_table)
+      local constraints = schema[column]
+      schema[column] = constraints..string.format(' REFERENCES %s', reference_table)
     end
   end
 
@@ -40,8 +40,8 @@ local function _createTable(args)
   end
 
   -- Build query string
-  local columnDefinitions = string.format('id %s\n', columns.id)
-  for columnName, constraints in pairs(columns) do
+  local columnDefinitions = string.format('id %s\n', schema.id)
+  for columnName, constraints in pairs(schema) do
     if columnName ~= 'id' then
       columnDefinitions = string.format('%s        ,%s %s\n', columnDefinitions, columnName, constraints)
     end
@@ -105,20 +105,20 @@ function LUActiveRecord.new(args)
 
   local tableName = assert(type(args.tableName) == 'string' and args.tableName, 'tableName must be a string')
   local dbFilename = assert(type(args.dbFilename) == 'string' or LUActiveRecord.DATABASE_LOCATION, 'dbFilename must be a string')
-  local columns = assert(type(args.columns) == 'table' and args.columns, 'columns must be a table')
+  local schema = assert(type(args.schema) == 'table' and args.schema, 'schema must be a table')
   local references = args.references and assert(type(args.references) == 'table', 'references must be a table if given')
   local recreate = args.recreate and assert(type(args.recreate) == 'boolean', 'recreate must be a boolean')
   print("Constructing new LUActiveRecord: "..tableName)
 
   -- Ensure row ID is a UUID
   -- TODO(dabrady) Tell users I'm doing this, don't be so sneaky.
-  columns.id = "TEXT NOT NULL PRIMARY KEY"
+  schema.id = "TEXT NOT NULL PRIMARY KEY"
 
   -- Create the backing table for this new record type.
   _createTable{
     name = tableName,
     db = dbFilename,
-    columns = columns,
+    schema = schema,
     references = references,
     drop_first = recreate
   }
@@ -126,8 +126,7 @@ function LUActiveRecord.new(args)
   local newActiveRecord = setmetatable(
     {
       tableName = tableName,
-      -- TODO(dabrady) Consider renaming this to 'schema'
-      columns = columns
+      schema = schema
     },
     {
       -- TODO(dabrady) Evaluate if LUActiveRecord should be treated as a 'base', or not.
