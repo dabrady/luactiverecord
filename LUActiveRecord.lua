@@ -124,7 +124,11 @@ function LUActiveRecord.new(args)
   }
 
   local newActiveRecord = setmetatable(
-    { tableName = tableName, columns = columns },
+    {
+      tableName = tableName,
+      -- TODO(dabrady) Consider renaming this to 'schema'
+      columns = columns
+    },
     {
       -- TODO(dabrady) Evaluate if LUActiveRecord should be treated as a 'base', or not.
       -- __index = LUActiveRecord,
