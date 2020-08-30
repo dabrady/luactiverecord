@@ -135,8 +135,11 @@ function LUActiveRecord.new(args)
 
       dbFilename = dbFilename,
       reference_columns = references,
-      -- A relevant slice of LUActiveRecord.RECORD_CACHE
-      references = table.slice(LUActiveRecord.RECORD_CACHE, table.values(references))
+      -- NOTE(dabrady) We leverage this when generating accessors for our reference columns.
+      -- If we were to slice this down to a more relevant subset of the cache, we'd run into
+      -- problems when using said accessors if the referenced table didn't exist in the cache
+      -- at the time this Record was created. We avoid this by using a handle to the entire cache.
+      references = LUActiveRecord.RECORD_CACHE
     }
   )
   -- Attach some functionality.
