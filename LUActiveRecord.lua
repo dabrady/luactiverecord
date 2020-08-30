@@ -103,11 +103,23 @@ end
 function LUActiveRecord.new(args)
   assert(type(args) == 'table', 'expected table, given '..type(args))
 
-  local tableName = assert(type(args.tableName) == 'string' and args.tableName, 'tableName must be a string')
-  local dbFilename = assert(type(args.dbFilename) == 'string' or LUActiveRecord.DATABASE_LOCATION, 'dbFilename must be a string')
-  local schema = assert(type(args.schema) == 'table' and args.schema, 'schema must be a table')
-  local references = args.references and assert(type(args.references) == 'table', 'references must be a table if given')
-  local recreate = args.recreate and assert(type(args.recreate) == 'boolean', 'recreate must be a boolean')
+  -- Required --
+  local tableName = args.tableName
+  assert(type(tableName) == 'string', 'tableName must be a string')
+
+  local schema = args.schema
+  assert(type(schema) == 'table', 'schema must be a table')
+
+  -- Optional --
+  local references = args.references or nil
+  if references then assert(type(references) == 'table', 'references must be a table if given') end
+
+  local dbFilename = args.dbFilename or LUActiveRecord.DATABASE_LOCATION
+  if dbFilename then assert(type(dbFilename) == 'string', 'dbFilename must be a string') end
+
+  local recreate = args.recreate or false
+  if recreate then assert(type(recreate) == 'boolean', 'recreate must be a boolean') end
+
   print("Constructing new LUActiveRecord: "..tableName)
 
   -- Ensure row ID is a UUID
