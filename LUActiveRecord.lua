@@ -74,17 +74,19 @@ end
 
 --------
 
-local LUActiveRecord = {}
--- Allow for this convenient syntax when creating new LUActiveRecords:
---   LUActiveRecord{ ... }
-LUActiveRecord = setmetatable(LUActiveRecord, {
+-- The base module.
+local LUActiveRecord = setmetatable(
+  {
+    DATABASE_LOCATION = nil,
+    RECORD_CACHE = {}
+  },
+  {
+    -- Allow for this convenient syntax when creating new LUActiveRecords:
+    --   LUActiveRecord{ ... }
     __call = function(self, ...) return self.new(...) end
-})
+  }
+)
 
-local ACTIVE_RECORD_CACHE = {}
-LUActiveRecord.RECORD_CACHE = ACTIVE_RECORD_CACHE
-
-LUActiveRecord.DATABASE_LOCATION = nil
 function LUActiveRecord.setMainDatabase(db)
   local argType = type(db)
   assert(
