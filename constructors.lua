@@ -142,14 +142,13 @@ function module:new(valuesByField)
       -- e.g. Person{ name = 'Daniel', address = nil } --> <persons>{ name = Daniel }
       -- TODO(dabrady) Order by attributes first.
       __tostring = function(t, curIndentLvl)
-        local function trimLeadingWhitespace(s)
-          return s:gsub('^\t*', '')
-        end
-        return string.format("<%s>%s",
-                             -- Prefix the formatted table with the table name.
-                             t.tableName,
-                             -- Trim any leading indentation from the formatting
-                             table.format(t, 1, curIndentLvl):gsub('^\t*', ''))
+        return string.format(
+          "<%s>%s",
+          -- Prefix the formatted table with the table name.
+          t.tableName,
+          -- Trim any leading indentation from the formatting
+          table.format(t, 1, curIndentLvl):trim()
+        )
       end
     }
   )
