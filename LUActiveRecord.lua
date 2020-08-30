@@ -115,18 +115,6 @@ function LUActiveRecord.new(args)
   -- TODO(dabrady) Tell users I'm doing this, don't be so sneaky.
   columns.id = "TEXT NOT NULL PRIMARY KEY"
 
-  local newActiveRecord = {
-    tableName = tableName,
-    columns = columns,
-    -- Internal state
-    __metadata = {
-      dbFilename = dbFilename,
-      reference_columns = references,
-      -- A relevant slice of LUActiveRecord.RECORD_CACHE
-      references = table.slice(ACTIVE_RECORD_CACHE, table.values(references))
-    }
-  }
-
   -- Create the backing table for this new record type.
   _createTable{
     name = tableName,
@@ -136,12 +124,25 @@ function LUActiveRecord.new(args)
     drop_first = recreate
   }
 
+  local newActiveRecord = setmetatable(
+    { tableName = tableName, columns = columns },
+    {
+      -- TODO(dabrady) Evaluate if LUActiveRecord should be treated as a 'base', or not.
+      -- __index = LUActiveRecord,
+
+      dbFilename = dbFilename,
+      reference_columns = references,
+      -- A relevant slice of LUActiveRecord.RECORD_CACHE
+      references = table.slice(LUActiveRecord.RECORD_CACHE, table.values(references))
+    }
+  )
+  -- Attach some functionality.
   loadmodule('constructors', newActiveRecord)
   loadmodule('finders', newActiveRecord)
 
-  local finalized_record = setmetatable(newActiveRecord, { __index = LUActiveRecord })
-  ACTIVE_RECORD_CACHE[tableName] = finalized_record
-  return finalized_record
+
+  LUActiveRecord.RECORD_CACHE[tableName] = newActiveRecord
+  return newActiveRecord
 end
 
 --------
