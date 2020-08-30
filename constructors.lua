@@ -117,7 +117,7 @@ function module:new(valuesByField)
   )
 
   -- Generate getters for any table references this record has.
-  if metadata.references then
+  if metadata.reference_columns then
     local reference_keys = table.slice(attrs, table.keys(metadata.reference_columns))
     newRecord.__references = _generate_reference_getters(reference_keys, metadata.reference_columns, metadata.references)
   end
