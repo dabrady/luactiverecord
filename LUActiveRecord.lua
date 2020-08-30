@@ -1,9 +1,12 @@
-local _,filepath = ...
-local OLD_PATH = package.path
-package.path = string.format(
-  "%s;%s",
-  string.format("%svendors/?.lua", filepath:sub(1, filepath:find('/[^/]*$'))),
-  OLD_PATH)
+do
+  local _,filepath = ...
+  local parentdir = filepath:sub(1, filepath:find('/[^/]*$'))
+  package.path = string.format(
+    "%s;%s;%s",
+    string.format("%s?.lua", parentdir),
+    string.format("%svendors/?.lua", parentdir),
+    package.path)
+end
 -------
 
 local sqlite = require('hs.sqlite3')
@@ -142,5 +145,4 @@ function LUActiveRecord.new(args)
 end
 
 --------
-package.path = OLD_PATH
 return LUActiveRecord
