@@ -5,7 +5,7 @@ assert(type(module) == 'table', 'must provide a table to extend')
 local sqlite = require('hs.sqlite3')
 
 function module:all()
-  local db,_,err = sqlite.open(self._.dbFilename, sqlite.OPEN_READONLY)
+  local db,_,err = sqlite.open(self.__metadata.dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
 
   local records = {}
@@ -18,7 +18,7 @@ function module:all()
 end
 
 function module:where(attrs, addendum)
-  local db,_,err = sqlite.open(self._.dbFilename, sqlite.OPEN_READONLY)
+  local db,_,err = sqlite.open(self.__metadata.dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
 
   local attrString = ''

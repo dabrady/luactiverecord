@@ -80,7 +80,7 @@ local LUActiveRecord = setmetatable({}, {
   __call = function(self, ...) return self.new(...) end
 })
 
-local MAIN_DATABASE_FILENAME
+LUActiveRecord.DATABASE_LOCATION = nil
 function LUActiveRecord.setMainDatabase(db)
   local argType = type(db)
   assert(
@@ -89,9 +89,9 @@ function LUActiveRecord.setMainDatabase(db)
   )
 
   if argType == 'userdata' then
-    MAIN_DATABASE_FILENAME = db:dbFilename('main')
+    LUActiveRecord.DATABASE_LOCATION = db:dbFilename('main')
   else
-    MAIN_DATABASE_FILENAME = db
+    LUActiveRecord.DATABASE_LOCATION = db
   end
 end
 
@@ -99,22 +99,23 @@ function LUActiveRecord.new(args)
   assert_type(args, 'table')
 
   local tableName = assert_type(args.tableName, 'string')
-  local dbFilename = assert_type(args.dbFilename or MAIN_DATABASE_FILENAME, 'string')
+  local dbFilename = assert_type(args.dbFilename or LUActiveRecord.DATABASE_LOCATION, 'string')
   local columns = assert_type(args.columns, 'table')
   local references = assert_type(args.references, '?table')
   local recreate = assert_type(args.recreate, '?boolean')
   print("Constructing new LUActiveRecord: "..tableName)
 
   -- Ensure row ID is a UUID
+  -- TODO(dabrady) Tell users I'm doing this, don't be so sneaky.
   columns.id = "TEXT NOT NULL PRIMARY KEY"
-
-  local internalState = {}
-  internalState.dbFilename = dbFilename
 
   local newActiveRecord = {
     tableName = tableName,
     columns = columns,
-    _ = internalState
+    -- Internal state
+    __metadata = {
+      dbFilename = dbFilename,
+    }
   }
 
   -- Create the backing table for this new record type.

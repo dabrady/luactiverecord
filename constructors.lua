@@ -16,7 +16,7 @@ local uuid = (function()
 end)()
 
 local function _insertNewRow(newRecord)
-  local db,_,err = sqlite.open(newRecord._.dbFilename)
+  local db,_,err = sqlite.open(newRecord.__metadata.dbFilename)
   assert(db, err)
   -- Attach pragma helpers
   loadmodule('pragmas', getmetatable(db))
