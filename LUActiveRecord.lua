@@ -87,7 +87,7 @@ local LUActiveRecord = setmetatable(
   }
 )
 
-function LUActiveRecord.setMainDatabase(db)
+function LUActiveRecord.setDefaultDatabase(db)
   local argType = type(db)
   assert(
     argType == 'userdata' or argType == 'string',

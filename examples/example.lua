@@ -3,7 +3,7 @@ package.path = '/Users/daniel.brady/projects/LUActiveRecord/?.lua;'..OLD_PATH
 -------
 
 LUActiveRecord = require('LUActiveRecord')
-LUActiveRecord.setMainDatabase('/Users/daniel.brady/projects/LUActiveRecord/examples/example.db')
+LUActiveRecord.setDefaultDatabase('/Users/daniel.brady/github/LUActiveRecord/examples/example.db')
 
 Person = LUActiveRecord{
   tableName = 'persons',
