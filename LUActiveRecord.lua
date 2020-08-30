@@ -119,6 +119,9 @@ function LUActiveRecord.new(args)
     -- Internal state
     __metadata = {
       dbFilename = dbFilename,
+      reference_columns = references,
+      -- A relevant slice of LUActiveRecord.RECORD_CACHE
+      references = table.slice(ACTIVE_RECORD_CACHE, table.values(references))
     }
   }
 

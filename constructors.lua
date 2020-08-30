@@ -4,6 +4,7 @@ assert(type(module) == 'table', 'must provide a table to extend')
 
 local sqlite = require('hs.sqlite3')
 require('lua-utils/table')
+require('lua-utils/string')
 local loadmodule = require('lua-utils/loadmodule')
 
 local uuid = (function()
@@ -63,12 +64,49 @@ local function _insertNewRow(newRecord)
   return res
 end
 
+local function _attach_reference_getters(row, reference_columns, references)
+  -- A function that attempts to lookup a record on a reference table whose primary key
+  -- is the value of the given column on this row.
+  local _getter_for = function(reference_column, reference_table)
+    return function()
+      local reference = assert(references[reference_table], 'unknown active record for table "'..reference_table..'"')
+      local foreign_key = row[reference_column]
+      if foreign_key then
+        return reference:find(foreign_key)
+      else
+        return nil
+      end
+    end
+  end
+
+  -- Attach a getter for each reference.
+  for reference_column, reference_table in pairs(reference_columns) do
+    -- NOTE(dabrady) Assumption: foreign key columns named with '_id' suffix.
+    -- TODO(dabrady) Consider making this configurable if it becomes a problem.
+    local ref_name = reference_column:chop('_id')
+    row[ref_name] = _getter_for(reference_column, reference_table)
+  end
+
+  ---
+  return row
+end
+
 function module:new(valuesByField)
   local attrs = table.copy(valuesByField) -- don't reference our input!
   attrs.id = attrs.id or uuid()
 
-  return setmetatable(attrs, {
+  local newRecord = table.merge({}, attrs)
+  if self.__metadata.references then
+    _attach_reference_getters(newRecord, self.__metadata.reference_columns, self.__metadata.references)
+  end
+
+  return setmetatable(newRecord, {
     __index = self,
+    -- TODO(dabrady) Modify to support displaying nil columns.
+    -- The natural behavior of Lua is that a table with a key pointing to nil
+    -- means that key isn't there at all, and is ignored by its index, meaning
+    -- in our case that nil columns won't be displayed at all.
+    -- e.g. Person{ name = 'Daniel', address = nil } --> <persons>{ name = Daniel }
     __tostring = function(self, curIndentLvl)
       local function trimLeadingWhitespace(s)
         return s:gsub('^\t*', '')
