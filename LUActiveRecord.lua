@@ -74,11 +74,15 @@ end
 
 --------
 
+local LUActiveRecord = {}
 -- Allow for this convenient syntax when creating new LUActiveRecords:
 --   LUActiveRecord{ ... }
-local LUActiveRecord = setmetatable({}, {
-  __call = function(self, ...) return self.new(...) end
+LUActiveRecord = setmetatable(LUActiveRecord, {
+    __call = function(self, ...) return self.new(...) end
 })
+
+local ACTIVE_RECORD_CACHE = {}
+LUActiveRecord.RECORD_CACHE = ACTIVE_RECORD_CACHE
 
 LUActiveRecord.DATABASE_LOCATION = nil
 function LUActiveRecord.setMainDatabase(db)
@@ -130,7 +134,9 @@ function LUActiveRecord.new(args)
   loadmodule('constructors', newActiveRecord)
   loadmodule('finders', newActiveRecord)
 
-  return setmetatable(newActiveRecord, { __index = LUActiveRecord })
+  local finalized_record = setmetatable(newActiveRecord, { __index = LUActiveRecord })
+  ACTIVE_RECORD_CACHE[tableName] = finalized_record
+  return finalized_record
 end
 
 --------
