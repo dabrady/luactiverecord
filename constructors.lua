@@ -17,6 +17,7 @@ local uuid = (function()
 end)()
 
 local function _insertNewRow(newRecord)
+  -- TODO(dabrady) Consider writing a helper for opening a DB connection w/standard pragmas
   local db,_,err = sqlite.open(newRecord.__metadata.dbFilename)
   assert(db, err)
   -- Attach pragma helpers
@@ -64,14 +65,18 @@ local function _insertNewRow(newRecord)
   return res
 end
 
-local function _attach_reference_getters(row, reference_columns, references)
+local function _generate_reference_getters(foreign_keys, reference_columns, references)
   -- A function that attempts to lookup a record on a reference table whose primary key
   -- is the value of the given column on this row.
-  local _getter_for = function(reference_column, reference_table)
+  local _getter_for = function(foreign_key_column, reference_table)
     return function()
       local reference = assert(references[reference_table], 'unknown active record for table "'..reference_table..'"')
-      local foreign_key = row[reference_column]
+
+      -- Do nothing if the foreign key isn't populated.
+      local foreign_key = foreign_keys[foreign_key_column]
       if foreign_key then
+        -- NOTE(dabrady) Current implementation of `find` matches against the row `id` column,
+        -- so the assumption here is that all foreign keys are row IDs.
         return reference:find(foreign_key)
       else
         return nil
@@ -79,45 +84,75 @@ local function _attach_reference_getters(row, reference_columns, references)
     end
   end
 
-  -- Attach a getter for each reference.
-  for reference_column, reference_table in pairs(reference_columns) do
+  -- Generate a getter for each reference.
+  local getters = {}
+  for foreign_key_column, reference_table in pairs(reference_columns) do
     -- NOTE(dabrady) Assumption: foreign key columns named with '_id' suffix.
     -- TODO(dabrady) Consider making this configurable if it becomes a problem.
-    local ref_name = reference_column:chop('_id')
-    row[ref_name] = _getter_for(reference_column, reference_table)
+    local ref_name = foreign_key_column:chop('_id')
+    getters[ref_name] = _getter_for(foreign_key_column, reference_table)
   end
 
   ---
-  return row
+  return getters
 end
 
 function module:new(valuesByField)
   local attrs = table.copy(valuesByField) -- don't reference our input!
   attrs.id = attrs.id or uuid()
 
-  local newRecord = table.merge({}, attrs)
-  if self.__metadata.references then
-    _attach_reference_getters(newRecord, self.__metadata.reference_columns, self.__metadata.references)
+  local metadata = getmetatable(self)
+  local newRecord = table.merge(
+    {
+      -- Store relevant metatable from our model on individual records.
+      __metadata = {
+        dbFilename = metadata.dbFilename,
+        columns = self.columns
+      },
+
+      -- Hold onto the original set of attributes.
+      __attributes = attrs,
+    },
+    attrs
+  )
+
+  -- Generate getters for any table references this record has.
+  if metadata.references then
+    local reference_keys = table.slice(attrs, table.keys(metadata.reference_columns))
+    newRecord.__references = _generate_reference_getters(reference_keys, metadata.reference_columns, metadata.references)
   end
 
-  return setmetatable(newRecord, {
-    __index = self,
-    -- TODO(dabrady) Modify to support displaying nil columns.
-    -- The natural behavior of Lua is that a table with a key pointing to nil
-    -- means that key isn't there at all, and is ignored by its index, meaning
-    -- in our case that nil columns won't be displayed at all.
-    -- e.g. Person{ name = 'Daniel', address = nil } --> <persons>{ name = Daniel }
-    __tostring = function(self, curIndentLvl)
-      local function trimLeadingWhitespace(s)
-        return s:gsub('^\t*', '')
+  return setmetatable(
+    newRecord,
+    {
+      -- Allow shorcuts like `r.reference()` instead of `r.__references.reference()`
+      -- NOTE(dabrady) Need to `rawget` to lookup `.__references` here; if we were to
+      -- access it from the record directly in the index function, we'd risk getting
+      -- caught in an infinite loop if the record didn't actually have any
+      -- `__references` key.
+      __index = function (t, k)
+        local refs = rawget(t, '__references')
+        return ( refs and refs[k] ) or self[k]
+      end,
+
+      -- TODO(dabrady) Modify to support displaying nil columns.
+      -- The natural behavior of Lua is that a table with a key pointing to nil
+      -- means that key isn't there at all, and is ignored by its index, meaning
+      -- in our case that nil columns won't be displayed at all.
+      -- e.g. Person{ name = 'Daniel', address = nil } --> <persons>{ name = Daniel }
+      -- TODO(dabrady) Order by attributes first.
+      __tostring = function(t, curIndentLvl)
+        local function trimLeadingWhitespace(s)
+          return s:gsub('^\t*', '')
+        end
+        return string.format("<%s>%s",
+                             -- Prefix the formatted table with the table name.
+                             t.tableName,
+                             -- Trim any leading indentation from the formatting
+                             table.format(t, 1, curIndentLvl):gsub('^\t*', ''))
       end
-      return string.format("<%s>%s",
-        -- Prefix the formatted table with the table name.
-        self.tableName,
-        -- Trim any leading indentation from the formatting
-        table.format(self, 1, curIndentLvl):gsub('^\t*', ''))
-    end
-  })
+    }
+  )
 end
 
 function module:save()
