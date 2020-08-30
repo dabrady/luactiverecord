@@ -144,6 +144,10 @@ function LUActiveRecord.new(args)
       -- TODO(dabrady) Evaluate if LUActiveRecord should be treated as a 'base', or not.
       -- __index = LUActiveRecord,
 
+      -- Allow for this convenient syntax when constructing (but not saving) new records:
+      --   Record{ ... }
+      __call = function(R, ...) return R:new(...) end,
+
       dbFilename = dbFilename,
       reference_columns = references,
       -- NOTE(dabrady) We leverage this when generating accessors for our reference columns.
