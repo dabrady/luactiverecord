@@ -8,10 +8,6 @@ package.path = string.format(
 
 local sqlite = require('hs.sqlite3')
 local loadmodule = require('lua-utils/loadmodule')
-
-local assertions = require('lua-utils/assertions')
-assert_type = assertions.assert_type
-
 require('lua-utils/table')
 
 -------
@@ -102,13 +98,13 @@ function LUActiveRecord.setDefaultDatabase(db)
 end
 
 function LUActiveRecord.new(args)
-  assert_type(args, 'table')
+  assert(type(args) == 'table', 'expected table, given '..type(args))
 
-  local tableName = assert_type(args.tableName, 'string')
-  local dbFilename = assert_type(args.dbFilename or LUActiveRecord.DATABASE_LOCATION, 'string')
-  local columns = assert_type(args.columns, 'table')
-  local references = assert_type(args.references, '?table')
-  local recreate = assert_type(args.recreate, '?boolean')
+  local tableName = assert(type(args.tableName) == 'string' and args.tableName, 'tableName must be a string')
+  local dbFilename = assert(type(args.dbFilename) == 'string' or LUActiveRecord.DATABASE_LOCATION, 'dbFilename must be a string')
+  local columns = assert(type(args.columns) == 'table' and args.columns, 'columns must be a table')
+  local references = args.references and assert(type(args.references) == 'table', 'references must be a table if given')
+  local recreate = args.recreate and assert(type(args.recreate) == 'boolean', 'recreate must be a boolean')
   print("Constructing new LUActiveRecord: "..tableName)
 
   -- Ensure row ID is a UUID
