@@ -65,6 +65,7 @@ local function _insertNewRow(newRecord)
   return res
 end
 
+-- TODO(dabrady) Cache reference lookups to avoid reading through on every 'get'.
 local function _generate_reference_getters(foreign_keys, reference_columns, references)
   -- A function that attempts to lookup a record on a reference table whose primary key
   -- is the value of the given column on this row.
@@ -102,19 +103,16 @@ function module:new(valuesByField)
   attrs.id = attrs.id or uuid()
 
   local metadata = getmetatable(self)
-  local newRecord = table.merge(
-    {
-      -- Store relevant metatable from our model on individual records.
-      __metadata = {
-        dbFilename = metadata.dbFilename,
-        columns = table.keys(self.schema)
-      },
-
-      -- Hold onto the original set of attributes.
-      __attributes = attrs,
+  local newRecord = {
+    -- Store relevant metatable from our model on individual records.
+    __metadata = {
+      dbFilename = metadata.dbFilename,
+      columns = table.keys(self.schema)
     },
-    attrs
-  )
+
+    -- Hold onto our attributes.
+    __attributes = attrs
+  }
 
   -- Generate getters for any table references this record has.
   if metadata.reference_columns then
@@ -125,14 +123,29 @@ function module:new(valuesByField)
   return setmetatable(
     newRecord,
     {
-      -- Allow shorcuts like `r.reference()` instead of `r.__references.reference()`
-      -- NOTE(dabrady) Need to `rawget` to lookup `.__references` here; if we were to
-      -- access it from the record directly in the index function, we'd risk getting
-      -- caught in an infinite loop if the record didn't actually have any
-      -- `__references` key.
+      -- NOTE(dabrady) Need to `rawget` in our lookups here; if we were to
+      -- access from the record directly in the index function, we'd trigger
+      -- an infinite recursion.
       __index = function (t, k)
         local refs = rawget(t, '__references')
-        return ( refs and refs[k] ) or self[k]
+        return
+          -- Check our table attributes first
+          rawget(t, '__attributes')[k]
+          -- Allow shorcuts like `r.reference()` instead of `r.__references.reference()`
+          or ( refs and refs[k] )
+          -- Check the table's own properties.
+          or rawget(t, k)
+          -- Or finally, delegate to our LUActiveRecord instance itself.
+          or self[k]
+      end,
+
+      -- Prioritize attribute setting over direct key insertion.
+      __newindex = function (t, k, v)
+        if t.__attributes[k] then
+          rawset(t.__attributes, k, v)
+        else
+          rawset(t,k,v)
+        end
       end,
 
       -- TODO(dabrady) Modify to support displaying nil columns.
@@ -147,7 +160,7 @@ function module:new(valuesByField)
           -- Prefix the formatted table with the table name.
           t.tableName,
           -- Trim any leading indentation from the formatting
-          table.format(t, 1, curIndentLvl):trim()
+          table.format(t.__attributes, 1, curIndentLvl):trim()
         )
       end
     }
