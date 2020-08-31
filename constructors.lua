@@ -114,7 +114,8 @@ local function _generate_reference_getters(newRecord, reference_columns, referen
 end
 
 function module:new(valuesByField)
-  local attrs = table.copy(valuesByField) -- don't reference our input!
+  -- Store an ordered (when iterated) copy of our input.
+  local attrs = setmetatable(table.copy(valuesByField), { __pairs = table.orderedPairs })
   attrs.id = attrs.id or uuid()
 
   local metadata = getmetatable(self)
@@ -158,7 +159,6 @@ function module:new(valuesByField)
         end
       end,
 
-      -- TODO(dabrady) Order by attributes first
       -- TODO(dabrady) Modify to support displaying nil columns.
       -- The natural behavior of Lua is that a table with a key pointing to nil
       -- means that key isn't there at all, and is ignored by its index, meaning
