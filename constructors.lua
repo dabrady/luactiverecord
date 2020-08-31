@@ -167,9 +167,22 @@ function module:new(valuesByField)
   )
 end
 
+function module:reload()
+  local me = self:find(self.id)
+
+  -- Refresh column values
+  table.merge(self.__attributes, me.__attributes)
+
+  -- TODO(dabrady) Refresh reference cache (once that's been implemented)
+
+  return self
+end
+
 function module:save()
   assert(_insertNewRow(self))
-  return self
+
+  -- Reloading here to pull in any changes made by database hooks (e.g. default values)
+  return self:reload()
 end
 
 function module:create(valuesByField)
