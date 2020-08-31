@@ -65,20 +65,28 @@ local function _insertNewRow(newRecord)
   return res
 end
 
--- TODO(dabrady) Cache reference lookups to avoid reading through on every 'get'.
-local function _generate_reference_getters(foreign_keys, reference_columns, references)
+-- TODO(dabrady) Break this out and use `loadmodule` to extend `new_record.__reference_getters`.
+local function _generate_reference_getters(newRecord, reference_columns, references)
   -- A function that attempts to lookup a record on a reference table whose primary key
   -- is the value of the given column on this row.
-  local _getter_for = function(foreign_key_column, reference_table)
+  local _getter_for = function(foreign_key_column, reference_table, ref_name)
     return function()
+      -- Check the cache first and short-circuit the lookup if possible.
+      local ref_cache = getmetatable(newRecord.__reference_getters).REFERENCE_CACHE
+      local cached_ref = ref_cache[ref_name]
+      if cached_ref then
+        return cached_ref
+      end
+
       local reference = assert(references[reference_table], 'unknown active record for table "'..reference_table..'"')
 
       -- Do nothing if the foreign key isn't populated.
-      local foreign_key = foreign_keys[foreign_key_column]
+      local foreign_key = newRecord[foreign_key_column]
       if foreign_key then
         -- NOTE(dabrady) Current implementation of `find` matches against the row `id` column,
         -- so the assumption here is that all foreign keys are row IDs.
-        return reference:find(foreign_key)
+        ref_cache[ref_name] = reference:find(foreign_key)
+        return ref_cache[ref_name]
       else
         return nil
       end
@@ -86,16 +94,23 @@ local function _generate_reference_getters(foreign_keys, reference_columns, refe
   end
 
   -- Generate a getter for each reference.
-  local getters = {}
   for foreign_key_column, reference_table in pairs(reference_columns) do
     -- NOTE(dabrady) Assumption: foreign key columns named with '_id' suffix.
     -- TODO(dabrady) Consider making this configurable if it becomes a problem.
     local ref_name = foreign_key_column:chop('_id')
-    getters[ref_name] = _getter_for(foreign_key_column, reference_table)
+
+    --[[ TODO(dabrady)
+      Consider making `__reference_getters` the ref cache itself, and make the cache-buster
+      the `__call` event of its metatable, so you can do things like this:
+          record.__reference_getters.person --> Person{}
+          record.__reference_getters(true).person --> clears cache, then looks up, caches, and returns Person{}
+    ]]
+
+    newRecord.__reference_getters[ref_name] = _getter_for(foreign_key_column, reference_table, ref_name)
   end
 
   ---
-  return getters
+  return
 end
 
 function module:new(valuesByField)
@@ -103,43 +118,38 @@ function module:new(valuesByField)
   attrs.id = attrs.id or uuid()
 
   local metadata = getmetatable(self)
-  local newRecord = {
-    -- Store relevant metatable from our model on individual records.
-    __metadata = {
-      dbFilename = metadata.dbFilename,
-      columns = table.keys(self.schema)
+  local newRecord = setmetatable(
+    {
+      -- Store relevant metatable from our model on individual records.
+      __metadata = {
+        dbFilename = metadata.dbFilename,
+        columns = table.keys(self.schema)
+      },
+
+      -- Hold onto our attributes.
+      __attributes = attrs
     },
-
-    -- Hold onto our attributes.
-    __attributes = attrs
-  }
-
-  -- Generate getters for any table references this record has.
-  if metadata.reference_columns then
-    local reference_keys = table.slice(attrs, table.keys(metadata.reference_columns))
-    newRecord.__references = _generate_reference_getters(reference_keys, metadata.reference_columns, metadata.references)
-  end
-
-  return setmetatable(
-    newRecord,
     {
       -- NOTE(dabrady) Need to `rawget` in our lookups here; if we were to
       -- access from the record directly in the index function, we'd trigger
       -- an infinite recursion.
       __index = function (t, k)
-        local refs = rawget(t, '__references')
+        local refs = rawget(t, '__reference_getters')
         return
           -- Check our table attributes first
           rawget(t, '__attributes')[k]
-          -- Allow shorcuts like `r.reference()` instead of `r.__references.reference()`
+        -- Allow shorcuts like `r.reference()` instead of `r.__reference_getters.reference()`
           or ( refs and refs[k] )
-          -- Check the table's own properties.
+        -- Check the table's own properties.
           or rawget(t, k)
-          -- Or finally, delegate to our LUActiveRecord instance itself.
+        -- Or finally, delegate to our LUActiveRecord instance itself.
           or self[k]
       end,
 
       -- Prioritize attribute setting over direct key insertion.
+      -- TODO If we add support for modifying existing records, ensure cached references
+      -- are cleared when their corresponding reference column is modified (even on
+      -- unsaved records?)
       __newindex = function (t, k, v)
         if t.__attributes[k] then
           rawset(t.__attributes, k, v)
@@ -148,12 +158,12 @@ function module:new(valuesByField)
         end
       end,
 
+      -- TODO(dabrady) Order by attributes first
       -- TODO(dabrady) Modify to support displaying nil columns.
       -- The natural behavior of Lua is that a table with a key pointing to nil
       -- means that key isn't there at all, and is ignored by its index, meaning
       -- in our case that nil columns won't be displayed at all.
       -- e.g. Person{ name = 'Daniel', address = nil } --> <persons>{ name = Daniel }
-      -- TODO(dabrady) Order by attributes first.
       __tostring = function(t, curIndentLvl)
         return string.format(
           "<%s>%s",
@@ -165,6 +175,23 @@ function module:new(valuesByField)
       end
     }
   )
+
+  -- Generate getters for any table references this record has.
+  if metadata.reference_columns then
+    newRecord.__reference_getters = setmetatable(
+      {},
+      -- A basic reference cache and cache-busting mechanism.
+      {
+        REFERENCE_CACHE = {},
+        -- NOTE(dabrady) Opting to clear table instead of recreate to avoid breaking
+        -- any pointers to the cache that might exist.
+        __flush_ref_cache = function(self) for k in pairs(self.REFERENCE_CACHE) do self.REFERENCE_CACHE[k] = nil end end
+      }
+    )
+    _generate_reference_getters(newRecord, metadata.reference_columns, metadata.references)
+  end
+
+  return newRecord
 end
 
 function module:reload()
@@ -173,7 +200,8 @@ function module:reload()
   -- Refresh column values
   table.merge(self.__attributes, me.__attributes)
 
-  -- TODO(dabrady) Refresh reference cache (once that's been implemented)
+  -- Refresh reference cache
+  getmetatable(self.__reference_getters):__flush_ref_cache()
 
   return self
 end
