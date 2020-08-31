@@ -27,7 +27,7 @@ local function _insertNewRow(newRecord)
 
   local insertList = 'id'
   local queryParams = ':id'
-  for _,columnName in ipairs(newRecord.__metadata.columns) do
+  for columnName,_ in pairs(newRecord.__attributes) do
     if columnName ~= 'id' then
       insertList = string.format('%s, %s', insertList, columnName)
       queryParams = string.format('%s, :%s', queryParams, columnName)
@@ -44,7 +44,7 @@ local function _insertNewRow(newRecord)
     insertList,
     queryParams)
 
-  for attr,val in pairs(newRecord) do
+  for attr,val in pairs(newRecord.__attributes) do
     if type(val) == 'string' then val = string.format("'%s'", val) end
     queryString = queryString:gsub(':'..attr, val)
   end
