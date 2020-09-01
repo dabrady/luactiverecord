@@ -208,7 +208,9 @@ function module:reload()
   table.merge(self.__attributes, me.__attributes)
 
   -- Refresh reference cache
-  getmetatable(self.__reference_getters):__flush_ref_cache()
+  if self.__reference_getters then
+    getmetatable(self.__reference_getters):__flush_ref_cache()
+  end
 
   return self
 end
