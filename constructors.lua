@@ -44,8 +44,15 @@ local function _insertNewRow(newRecord)
     insertList,
     queryParams)
 
+  -- Bind our query variables.
   for attr,val in pairs(newRecord.__attributes) do
-    if type(val) == 'string' then val = string.format("'%s'", val) end
+    -- NOTE(dabrady) Need to coerce values into strings for interpolation in the query,
+    -- while also ensuring values that are _actually_ strings remain quoted.
+    if type(val) == 'string' then
+      val = string.format("'%s'", val)
+    else
+      val = tostring(val)
+    end
     queryString = queryString:gsub(':'..attr, val)
   end
 
