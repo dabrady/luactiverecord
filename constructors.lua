@@ -10,7 +10,7 @@ local loadmodule = require('lua-utils/loadmodule')
 local uuid = (function()
   local uuidGenerator = require('uuid')
   uuidGenerator.randomseed(math.random(0,2^32))
-  uuidGeneratorSeed = uuidGenerator()
+  local uuidGeneratorSeed = uuidGenerator()
   return function()
     return uuidGenerator(uuidGeneratorSeed)
   end
