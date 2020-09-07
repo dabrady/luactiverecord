@@ -34,7 +34,6 @@ local function _insertNewRow(newRecord)
     end
   end
 
-  -- print(queryParams)
   local queryString = string.format(
     [[
       INSERT INTO %s(%s)
@@ -44,26 +43,12 @@ local function _insertNewRow(newRecord)
     insertList,
     queryParams)
 
-  -- Bind our query variables.
-  for attr,val in pairs(newRecord.__attributes) do
-    -- NOTE(dabrady) Need to coerce values into strings for interpolation in the query,
-    -- while also ensuring values that are _actually_ strings remain quoted.
-    if type(val) == 'string' then
-      val = string.format("'%s'", val)
-    else
-      val = tostring(val)
-    end
-    queryString = queryString:gsub(':'..attr, val)
-  end
-
   print(queryString)
   local statement = db:prepare(queryString)
   assert(statement, db:error_message())
 
-  -- TODO find out why this seems to be doing it wrong
-  -- statement:bind_names(newRecord)
-
-  -- print(statement:get_names())
+  -- Bind our query variables.
+  assert(statement:bind_names(newRecord.__attributes) == sqlite.OK, db:error_message())
 
   local res = statement:step()
   assert(res == sqlite.DONE, db:error_message())
