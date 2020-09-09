@@ -156,13 +156,13 @@ function module:new(valuesByField)
       -- means that key isn't there at all, and is ignored by its index, meaning
       -- in our case that nil columns won't be displayed at all.
       -- e.g. Person{ name = 'Daniel', address = nil } --> <persons>{ name = Daniel }
-      __tostring = function(t, curIndentLvl)
+      __tostring = function(t, options)
         return string.format(
           "<%s>%s",
           -- Prefix the formatted table with the table name.
           t.tableName,
           -- Trim any leading indentation from the formatting
-          table.format(t.__attributes, 1, curIndentLvl):trim()
+          table.format(t.__attributes, { depth = 1, startingIndentLvl = options and options.indent }):trim()
         )
       end
     }
