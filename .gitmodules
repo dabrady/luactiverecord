@@ -1,3 +1,6 @@
 [submodule "vendors/lua-utils"]
 	path = vendors/lua-utils
 	url = https://github.com/dabrady/lua-utils
+[submodule "vendors/lua-marshal"]
+	path = vendors/lua-marshal
+	url = https://github.com/dabrady/lua-marshal.git
