@@ -6,6 +6,7 @@ local sqlite = require('hs.sqlite3')
 require('lua-utils/table')
 require('lua-utils/string')
 local loadmodule = require('lua-utils/loadmodule')
+local marshal = require('marshal')
 
 local uuid = (function()
   local uuidGenerator = require('uuid')
@@ -15,6 +16,17 @@ local uuid = (function()
     return uuidGenerator(uuidGeneratorSeed)
   end
 end)()
+
+--[[
+  NOTE(dabrady) Non-simple datatypes are:
+  - table
+  - function
+  - userdata
+  - thread
+]]
+local function isSimpleValue(v)
+  return table.contains({'nil', 'string', 'number', 'boolean'}, type(v))
+end
 
 local function _insertNewRow(newRecord)
   -- TODO(dabrady) Consider writing a helper for opening a DB connection w/standard pragmas
@@ -27,10 +39,20 @@ local function _insertNewRow(newRecord)
 
   local insertList = 'id'
   local queryParams = ':id'
-  for columnName,_ in pairs(newRecord.__attributes) do
+  local marshaledAttrs = {}
+  for columnName,value in pairs(newRecord.__attributes) do
     if columnName ~= 'id' then
       insertList = string.format('%s, %s', insertList, columnName)
       queryParams = string.format('%s, :%s', queryParams, columnName)
+    end
+
+    -- NOTE(dabrady) Complex datatypes are serialized in an encoded fashion so that they can
+    -- be deserialized more accurately later on.
+    if isSimpleValue(value) then
+      marshaledAttrs[columnName] = value
+    else
+      -- NOTE(dabrady) Metatables and function environments are not serialized by this.
+      marshaledAttrs[columnName] = marshal.encode(value)
     end
   end
 
@@ -47,8 +69,8 @@ local function _insertNewRow(newRecord)
   local statement = db:prepare(queryString)
   assert(statement, db:error_message())
 
-  -- Bind our query variables.
-  assert(statement:bind_names(newRecord.__attributes) == sqlite.OK, db:error_message())
+  -- Bind our query variables to our marshaled attributes.
+  assert(statement:bind_names(marshaledAttrs) == sqlite.OK, db:error_message())
 
   local res = statement:step()
   assert(res == sqlite.DONE, db:error_message())

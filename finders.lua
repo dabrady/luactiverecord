@@ -3,6 +3,19 @@ module = module or {}
 assert(type(module) == 'table', 'must provide a table to extend')
 
 local sqlite = require('hs.sqlite3')
+local marshal = require('marshal')
+
+local function unmarshal(row)
+  return table.map(
+    row,
+    function(attr,val)
+      if marshal.isEncoded(val) then
+        val = marshal.decode(val)
+      end
+      return attr, val
+    end
+  )
+end
 
 function module:all()
   local db,_,err = sqlite.open(getmetatable(self).dbFilename, sqlite.OPEN_READONLY)
@@ -10,7 +23,8 @@ function module:all()
 
   local records = {}
   for row in db:nrows('SELECT * FROM '..self.tableName) do
-    table.insert(records, self:new(row))
+    -- Decode values as we read them out of the DB.
+    table.insert(records, self:new(unmarshal(row)))
   end
   db:close()
 
@@ -53,7 +67,8 @@ function module:where(attrs, addendum)
   -- DEBUG
 
   for row in db:nrows(queryString) do
-    table.insert(records, self:new(row))
+    -- Decode values as we read them out of the DB.
+    table.insert(records, self:new(unmarshal(row)))
   end
 
   db:close()
