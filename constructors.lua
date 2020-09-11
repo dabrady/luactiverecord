@@ -154,8 +154,6 @@ function module:new(valuesByField)
           rawget(t, '__attributes')[k]
         -- Allow shorcuts like `r.reference` instead of `r.__reference_getters.reference()`
           or ( refs and refs[k] and refs[k]() )
-        -- Check the table's own properties.
-          or rawget(t, k)
         -- Or finally, delegate to our LUActiveRecord instance itself.
           or self[k]
       end,
