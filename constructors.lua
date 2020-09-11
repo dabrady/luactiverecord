@@ -184,7 +184,7 @@ function module:new(valuesByField)
           -- Prefix the formatted table with the table name.
           t.tableName,
           -- Trim any leading indentation from the formatting
-          table.format(t.__attributes, { depth = 1, startingIndentLvl = options and options.indent }):trim()
+          table.format(t.__attributes, { depth = 2, startingIndentLvl = options and options.indent }):trim()
         )
       end
     }
