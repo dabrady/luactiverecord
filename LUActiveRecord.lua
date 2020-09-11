@@ -97,6 +97,22 @@ function LUActiveRecord.setDefaultDatabase(db)
   end
 end
 
+-- Creates entries in recognized records en masse.
+function LUActiveRecord.seedDatabase(seedsFilePath)
+  assert(type(seedsFilePath) == 'string', 'must provide an absolute path to your seeds file')
+
+  local seeds = assert(loadfile(seedsFilePath)(LUActiveRecord))
+  for tableName, data in pairs(seeds) do
+    -- print(string.format('[DEBUG] creating %s: %s', tableName, table.format(data, {depth=4})))
+    for _,datum in ipairs(data) do
+      local activeRecord = LUActiveRecord.RECORD_CACHE[tableName]
+      if activeRecord then
+        activeRecord:create(datum)
+      end
+    end
+  end
+end
+
 function LUActiveRecord.new(args)
   assert(type(args) == 'table', 'expected table, given '..type(args))
 
