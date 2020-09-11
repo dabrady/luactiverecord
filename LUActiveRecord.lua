@@ -35,7 +35,6 @@ local function _createTable(args)
   assert(db, err)
 
   if drop_first then
-    print('Table recreation specified: dropping "'..name..'"')
     db:exec('DROP TABLE '..name)
   end
 
@@ -57,8 +56,6 @@ local function _createTable(args)
     name,
     columnDefinitions,
     name)
-
-  print('\n'..queryString)
 
   local statement = db:prepare(queryString)
   assert(statement, db:error_message())
@@ -111,6 +108,7 @@ function LUActiveRecord.new(args)
   assert(type(schema) == 'table', 'schema must be a table')
 
   -- Optional --
+  -- TODO(dabrady) Verify this is a subset of the given schema.
   local references = args.references or nil
   if references then assert(type(references) == 'table', 'references must be a table if given') end
 
@@ -119,8 +117,6 @@ function LUActiveRecord.new(args)
 
   local recreate = args.recreate or false
   if recreate then assert(type(recreate) == 'boolean', 'recreate must be a boolean') end
-
-  print("Constructing new LUActiveRecord: "..tableName)
 
   -- Ensure row ID is a UUID
   -- TODO(dabrady) Tell users I'm doing this, don't be so sneaky.

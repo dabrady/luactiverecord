@@ -62,10 +62,6 @@ function module:where(attrs, addendum)
   local records = {}
   local queryString = string.format("SELECT * FROM %s WHERE %s", self.tableName, attrString)
 
-  -- DEBUG
-  print(queryString)
-  -- DEBUG
-
   for row in db:nrows(queryString) do
     -- Decode values as we read them out of the DB.
     table.insert(records, self:new(unmarshal(row)))

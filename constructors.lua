@@ -65,7 +65,6 @@ local function _insertNewRow(newRecord)
     insertList,
     queryParams)
 
-  print(queryString)
   local statement = db:prepare(queryString)
   assert(statement, db:error_message())
 
