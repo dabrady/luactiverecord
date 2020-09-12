@@ -170,8 +170,8 @@ function LUActiveRecord.new(args)
     }
   )
   -- Attach some functionality.
-  loadmodule('constructors', newActiveRecord)
-  loadmodule('finders', newActiveRecord)
+  loadmodule('src/constructors', newActiveRecord)
+  loadmodule('src/finders', newActiveRecord)
 
 
   LUActiveRecord.RECORD_CACHE[tableName] = newActiveRecord

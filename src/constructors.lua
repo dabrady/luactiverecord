@@ -33,7 +33,7 @@ local function _insertNewRow(newRecord)
   local db,_,err = sqlite.open(newRecord.__metadata.dbFilename)
   assert(db, err)
   -- Attach pragma helpers
-  loadmodule('pragmas', getmetatable(db))
+  loadmodule('src/pragmas', getmetatable(db))
 
   db:enable_foreign_key_constraints()
 
