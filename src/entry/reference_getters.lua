@@ -1,6 +1,6 @@
-local referenceGetters = {}
+local reference_getters = {}
 
-function referenceGetters.attach(entry, reference_columns, referenceLedgers)
+function reference_getters.attach(entry, reference_columns, reference_ledgers)
   if not entry.__reference_getters then
     entry.__reference_getters = {}
   end
@@ -31,8 +31,8 @@ function referenceGetters.attach(entry, reference_columns, referenceLedgers)
         return cached_ref
       end
 
-      local referenceLedger = assert(
-        referenceLedgers[reference_table],
+      local reference_ledger = assert(
+        reference_ledgers[reference_table],
         'no available ledger for table "'..reference_table..'"'
       )
 
@@ -41,7 +41,7 @@ function referenceGetters.attach(entry, reference_columns, referenceLedgers)
       if foreign_key then
         -- NOTE(dabrady) Current implementation of `find` matches against the row `id` column,
         -- so the assumption here is that all foreign keys are row IDs.
-        ref_cache[ref_name] = referenceLedger:find(foreign_key)
+        ref_cache[ref_name] = reference_ledger:find(foreign_key)
         return ref_cache[ref_name]
       else
         return nil
@@ -69,4 +69,4 @@ function referenceGetters.attach(entry, reference_columns, referenceLedgers)
   return entry
 end
 
-return referenceGetters
+return reference_getters

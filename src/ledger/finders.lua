@@ -20,9 +20,9 @@ function finders.all(ledger)
   assert(db, err)
 
   local entries = {}
-  for row in db:nrows('SELECT * FROM '..ledger.tableName) do
+  for row in db:nrows('SELECT * FROM '..ledger.table_name) do
     -- Decode values as we read them out of the DB.
-    table.insert(entries, ledger:newEntry(_unmarshal(row)))
+    table.insert(entries, ledger:new_entry(_unmarshal(row)))
   end
   db:close()
 
@@ -33,36 +33,36 @@ function finders.where(ledger, attrs, addendum)
   local db,_,err = sqlite.open(getmetatable(ledger).database_location, sqlite.OPEN_READONLY)
   assert(db, err)
 
-  local attrString = ''
+  local attr_string = ''
   for attr,val in pairs(attrs) do
     -- Wrap strings in extra quotes for the query
     if type(val) == 'string' then val = string.format("'%s'", val) end
-    attrString = string.format('%s AND %s = %s', attrString, attr, val)
+    attr_string = string.format('%s AND %s = %s', attr_string, attr, val)
   end
   -- Strip leading 'AND'
-  attrString = attrString:match('^ AND (.*)')
+  attr_string = attr_string:match('^ AND (.*)')
 
   -- Append any additional constraints
   if addendum ~= nil then
-    local addendumType = type(addendum)
-    if addendumType == 'string' then
-      attrString = string.format('%s %s', attrString, addendum)
-    elseif addendumType == 'table' then
-      local addendumString = ''
+    local addendum_type = type(addendum)
+    if addendum_type == 'string' then
+      attr_string = string.format('%s %s', attr_string, addendum)
+    elseif addendum_type == 'table' then
+      local addendum_string = ''
       for k,v in pairs(addendum) do
         k = k:unchain() -- Unchain a multiword key, i.e. 'group_by' => 'group by'
-        addendumString = string.format('%s %s %s', addendumString, k, v)
+        addendum_string = string.format('%s %s %s', addendum_string, k, v)
       end
-      attrString = string.format('%s %s', attrString, addendumString)
+      attr_string = string.format('%s %s', attr_string, addendum_string)
     end
   end
 
   local entries = {}
-  local queryString = string.format("SELECT * FROM %s WHERE %s", ledger.tableName, attrString)
+  local query_string = string.format("SELECT * FROM %s WHERE %s", ledger.table_name, attr_string)
 
-  for row in db:nrows(queryString) do
+  for row in db:nrows(query_string) do
     -- Decode values as we read them out of the DB.
-    table.insert(entries, ledger:newEntry(_unmarshal(row)))
+    table.insert(entries, ledger:new_entry(_unmarshal(row)))
   end
 
   db:close()

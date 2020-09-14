@@ -3,15 +3,15 @@
 -- annoys me: most of the time, I want that search to prioritize the local
 -- project over the rest, and this bit of ugliness gets me that behavior.
 -- `require` passes the absolute path to this module as the second argument
-local withProjectInPath = function(fn) return fn() end
-local projectDir = ''
-local _,modulePath = ...
-if modulePath then
-  projectDir = modulePath:sub(1, modulePath:find('/[^/]*$'))
-  withProjectInPath = assert(loadfile(projectDir..'lib/withProjectInPath.lua'))(projectDir)
+local with_project_in_path = function(fn) return fn() end
+local project_dir = ''
+local _,module_path = ...
+if module_path then
+  project_dir = module_path:sub(1, module_path:find('/[^/]*$'))
+  with_project_in_path = assert(loadfile(project_dir..'lib/with_project_in_path.lua'))(project_dir)
 end
 
-return withProjectInPath(function()
+return with_project_in_path(function()
 --- START MODULE DEFINITION ---
 
 -- TODO(dabrady) Vendor this dependency, it ties us to a local installation of Hammerspoon
@@ -20,7 +20,7 @@ require('vendors/lua-utils/table')
 
 local Ledger = require('src/ledger')
 
-local function _createTable(args)
+local function _create_table(args)
   local name = args.name
   local database_location = args.database_location
   local schema = args.schema
@@ -44,14 +44,14 @@ local function _createTable(args)
   end
 
   -- Build query string
-  local columnDefinitions = string.format('id %s\n', schema.id)
-  for columnName, constraints in pairs(schema) do
-    if columnName ~= 'id' then
+  local column_definitions = string.format('id %s\n', schema.id)
+  for column_name, constraints in pairs(schema) do
+    if column_name ~= 'id' then
       -- TODO(dabrady) this whitespace is unnecessary, only nice for printing out the query
-      columnDefinitions = string.format('%s        ,%s %s\n', columnDefinitions, columnName, constraints)
+      column_definitions = string.format('%s        ,%s %s\n', column_definitions, column_name, constraints)
     end
   end
-  local queryString = string.format(
+  local query_string = string.format(
     [[
       CREATE TABLE IF NOT EXISTS %s (
       %s
@@ -60,10 +60,10 @@ local function _createTable(args)
       CREATE UNIQUE INDEX IF NOT EXISTS idx_primary_key ON %s(id);
       ]],
     name,
-    columnDefinitions,
+    column_definitions,
     name)
 
-  local statement = db:prepare(queryString)
+  local statement = db:prepare(query_string)
   assert(statement, db:error_message())
 
   local res = statement:step()
@@ -106,7 +106,7 @@ function luactiverecord:configure(config)
 end
 
 -- Creates entries in recognized records en masse.
-function luactiverecord:seedDatabase(seeds_location)
+function luactiverecord:seed_database(seeds_location)
   seeds_location = seeds_location or self.__config.seeds_location
   assert(
     type(seeds_location) == 'string',
@@ -114,12 +114,12 @@ function luactiverecord:seedDatabase(seeds_location)
 
   local seeds = assert(loadfile(seeds_location)(self))
 
-  for tableName, data in pairs(seeds) do
-    -- print(string.format('[DEBUG] creating %s: %s', tableName, table.format(data, {depth=4})))
+  for table_name, data in pairs(seeds) do
+    -- print(string.format('[DEBUG] creating %s: %s', table_name, table.format(data, {depth=4})))
     for _,datum in ipairs(data) do
-      local ledger = self.LEDGER_CACHE[tableName]
+      local ledger = self.LEDGER_CACHE[table_name]
       if ledger then
-        ledger:addEntry(datum)
+        ledger:add_entry(datum)
       end
     end
   end
@@ -129,8 +129,8 @@ function luactiverecord:construct(args)
   assert(type(args) == 'table', 'expected table, given '..type(args))
 
   -- Required --
-  local tableName = args.tableName
-  assert(type(tableName) == 'string', 'tableName must be a string')
+  local table_name = args.table_name
+  assert(type(table_name) == 'string', 'table_name must be a string')
 
   local schema = args.schema
   assert(type(schema) == 'table', 'schema must be a table')
@@ -148,24 +148,24 @@ function luactiverecord:construct(args)
   schema.id = "TEXT NOT NULL PRIMARY KEY"
 
   -- Create the backing table for this new record type.
-  _createTable{
-    name = tableName,
+  _create_table{
+    name = table_name,
     database_location = self.__config.database_location,
     schema = schema,
     references = references,
     drop_first = recreate
   }
 
-  local newLedger = Ledger{
-    tableName = tableName,
+  local new_ledger = Ledger{
+    table_name = table_name,
     schema = schema,
     database_location = self.__config.database_location,
     reference_columns = references,
-    referenceLedgers = table.slice(self.LEDGER_CACHE, table.values(references))
+    reference_ledgers = table.slice(self.LEDGER_CACHE, table.values(references))
   }
 
-  self.LEDGER_CACHE[tableName] = newLedger
-  return newLedger
+  self.LEDGER_CACHE[table_name] = new_ledger
+  return new_ledger
 end
 
 return setmetatable(

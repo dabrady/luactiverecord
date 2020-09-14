@@ -2,29 +2,29 @@
 -- working directory at the time the path is searched. This makes sense, but
 -- annoys me: most of the time, I want that search to prioritize the local
 -- project over the rest, and this gets me that behavior.
-local projectDir = ...
-assert(projectDir and type(projectDir) == 'string')
+local project_dir = ...
+assert(project_dir and type(project_dir) == 'string')
 return function(fn)
   -- Temporarily modify loadpath
-  local oldPath = package.path
-  local oldCPath = package.cpath
+  local old_path = package.path
+  local old_cpath = package.cpath
   package.path = ''
-    ..projectDir..'?.lua;'
-    ..projectDir..'?/?.lua;'
-    ..projectDir..'?/init.lua;'
+    ..project_dir..'?.lua;'
+    ..project_dir..'?/?.lua;'
+    ..project_dir..'?/init.lua;'
     ..package.path
   package.cpath = ''
-    ..projectDir..'src/bin/?.so;'
+    ..project_dir..'src/bin/?.so;'
     ..package.cpath
 
-  string.format('%s?.so;%s', Flow.spoonPath, oldCPath)
+  string.format('%s?.so;%s', Flow.spoonPath, old_cpath)
 
   -- Call the function that might require project files
   local res = fn()
 
   -- Reset loadpath
-  package.path = oldPath
-  package.cpath = oldCPath
+  package.path = old_path
+  package.cpath = old_cpath
 
   return res
 end

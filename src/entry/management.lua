@@ -15,11 +15,11 @@ local management = {}
   - userdata
   - thread
 ]]
-local function isSimpleValue(v)
+local function _is_simple_value(v)
   return table.contains({'nil', 'string', 'number', 'boolean'}, type(v))
 end
 
-local function _insertNewRow(entry)
+local function _insert_new_row(entry)
   -- TODO(dabrady) Consider writing a helper for opening a DB connection w/standard pragmas
   local db,_,err = sqlite.open(entry.__metadata.database_location)
   assert(db, err)
@@ -28,39 +28,39 @@ local function _insertNewRow(entry)
 
   db:enable_foreign_key_constraints()
 
-  local insertList = 'id'
-  local queryParams = ':id'
-  local marshaledAttrs = {}
-  for columnName,value in pairs(entry.__attributes) do
-    if columnName ~= 'id' then
-      insertList = string.format('%s, %s', insertList, columnName)
-      queryParams = string.format('%s, :%s', queryParams, columnName)
+  local insert_list = 'id'
+  local query_params = ':id'
+  local marshaled_attrs = {}
+  for column_name,value in pairs(entry.__attributes) do
+    if column_name ~= 'id' then
+      insert_list = string.format('%s, %s', insert_list, column_name)
+      query_params = string.format('%s, :%s', query_params, column_name)
     end
 
     -- NOTE(dabrady) Complex datatypes are serialized in an encoded fashion so that they can
     -- be deserialized more accurately later on.
-    if isSimpleValue(value) then
-      marshaledAttrs[columnName] = value
+    if _is_simple_value(value) then
+      marshaled_attrs[column_name] = value
     else
       -- NOTE(dabrady) Metatables and function environments are not serialized by this.
-      marshaledAttrs[columnName] = lmarshal.encode(value)
+      marshaled_attrs[column_name] = lmarshal.encode(value)
     end
   end
 
-  local queryString = string.format(
+  local query_string = string.format(
     [[
       INSERT INTO %s(%s)
       VALUES(%s)
     ]],
-    entry.__metadata.tableName,
-    insertList,
-    queryParams)
+    entry.__metadata.table_name,
+    insert_list,
+    query_params)
 
-  local statement = db:prepare(queryString)
+  local statement = db:prepare(query_string)
   assert(statement, db:error_message())
 
   -- Bind our query variables to our marshaled attributes.
-  assert(statement:bind_names(marshaledAttrs) == sqlite.OK, db:error_message())
+  assert(statement:bind_names(marshaled_attrs) == sqlite.OK, db:error_message())
 
   local res = statement:step()
   assert(res == sqlite.DONE, db:error_message())
@@ -70,7 +70,7 @@ local function _insertNewRow(entry)
 end
 
 function management.persist(entry)
-  assert(_insertNewRow(entry))
+  assert(_insert_new_row(entry))
 
   -- Refreshing here to pull in any changes made by database hooks (e.g. default values)
   return entry:refresh()
