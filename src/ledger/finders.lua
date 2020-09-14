@@ -15,22 +15,22 @@ local function _unmarshal(row)
   )
 end
 
-function finders.all(recordPlayer)
-  local db,_,err = sqlite.open(getmetatable(recordPlayer).dbFilename, sqlite.OPEN_READONLY)
+function finders.all(ledger)
+  local db,_,err = sqlite.open(getmetatable(ledger).dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
 
-  local records = {}
-  for row in db:nrows('SELECT * FROM '..recordPlayer.tableName) do
+  local entries = {}
+  for row in db:nrows('SELECT * FROM '..ledger.tableName) do
     -- Decode values as we read them out of the DB.
-    table.insert(records, recordPlayer:new(_unmarshal(row)))
+    table.insert(entries, ledger:newEntry(_unmarshal(row)))
   end
   db:close()
 
-  return records
+  return entries
 end
 
-function finders.where(recordPlayer, attrs, addendum)
-  local db,_,err = sqlite.open(getmetatable(recordPlayer).dbFilename, sqlite.OPEN_READONLY)
+function finders.where(ledger, attrs, addendum)
+  local db,_,err = sqlite.open(getmetatable(ledger).dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
 
   local attrString = ''
@@ -50,32 +50,32 @@ function finders.where(recordPlayer, attrs, addendum)
     elseif addendumType == 'table' then
       local addendumString = ''
       for k,v in pairs(addendum) do
-        k = k:gsub('_', ' ') -- Unchain a multieword key, i.e. 'group_by' => 'group by'
+        k = k:unchain() -- Unchain a multiword key, i.e. 'group_by' => 'group by'
         addendumString = string.format('%s %s %s', addendumString, k, v)
       end
       attrString = string.format('%s %s', attrString, addendumString)
     end
   end
 
-  local records = {}
-  local queryString = string.format("SELECT * FROM %s WHERE %s", recordPlayer.tableName, attrString)
+  local entries = {}
+  local queryString = string.format("SELECT * FROM %s WHERE %s", ledger.tableName, attrString)
 
   for row in db:nrows(queryString) do
     -- Decode values as we read them out of the DB.
-    table.insert(records, recordPlayer:new(_unmarshal(row)))
+    table.insert(entries, ledger:newEntry(_unmarshal(row)))
   end
 
   db:close()
 
-  return records
+  return entries
 end
 
-function finders.find_by(recordPlayer, attrs)
-  return finders.where(recordPlayer, attrs, {limit = 1})[1]
+function finders.find_by(ledger, attrs)
+  return finders.where(ledger, attrs, {limit = 1})[1]
 end
 
-function finders.find(recordPlayer, id)
-  return finders.find_by(recordPlayer, {id = id})
+function finders.find(ledger, id)
+  return finders.find_by(ledger, {id = id})
 end
 
 -------

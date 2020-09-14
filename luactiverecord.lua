@@ -18,7 +18,7 @@ return withProjectInPath(function()
 local sqlite = require('hs.sqlite3')
 require('vendors/lua-utils/table')
 
-local RecordPlayer = require('src/record_player')
+local Ledger = require('src/ledger')
 
 local function _createTable(args)
   local name = args.name
@@ -79,41 +79,54 @@ end
 -- The base module.
 local luactiverecord = {
   DATABASE_LOCATION = nil,
-  RECORD_PLAYER_CACHE = {}
+  LEDGER_CACHE = {}
 }
 
-function luactiverecord.setDefaultDatabase(db)
-  local argType = type(db)
-  assert(
-    argType == 'userdata' or argType == 'string',
-    'must provide an open SQLite database object or an absolute path to an SQLite database file'
-  )
+function luactiverecord:configure(config)
+  if not self.__config then
+    self.__config = {}
+  end
 
-  if argType == 'userdata' then
-    luactiverecord.DATABASE_LOCATION = db:dbFilename('main')
-  else
-    luactiverecord.DATABASE_LOCATION = db
+  if config.database_location then
+    local db_loc = config.database_location
+    assert(
+      type(db_loc) == 'string',
+      'must provide an absolute path to an SQLite database file'
+    )
+    self.__config.database_location = db_loc
+  end
+
+  if config.seeds_location then
+    local seeds_loc = config.seeds_location
+    assert(
+      type(seeds_loc) == 'string',
+      'must provide an absolute path to a Lua file'
+    )
+    self.__config.seeds_location = seeds_loc
   end
 end
 
 -- Creates entries in recognized records en masse.
-function luactiverecord.seedDatabase(seedsFilePath)
-  assert(type(seedsFilePath) == 'string', 'must provide an absolute path to your seeds file')
+function luactiverecord:seedDatabase(seedsFilePath)
+  seedsFilePath = seedsFilePath or self.__config.seeds_location
+  assert(
+    type(seedsFilePath) == 'string',
+    'must provide an absolute path to a Lua file')
 
-  local seeds = assert(loadfile(seedsFilePath)(luactiverecord))
+  local seeds = assert(loadfile(seedsFilePath)(self))
 
   for tableName, data in pairs(seeds) do
     -- print(string.format('[DEBUG] creating %s: %s', tableName, table.format(data, {depth=4})))
     for _,datum in ipairs(data) do
-      local recordPlayer = luactiverecord.RECORD_PLAYER_CACHE[tableName]
-      if recordPlayer then
-        recordPlayer:create(datum)
+      local ledger = self.LEDGER_CACHE[tableName]
+      if ledger then
+        ledger:addEntry(datum)
       end
     end
   end
 end
 
-function luactiverecord.construct(args)
+function luactiverecord:construct(args)
   assert(type(args) == 'table', 'expected table, given '..type(args))
 
   -- Required --
@@ -126,10 +139,7 @@ function luactiverecord.construct(args)
   -- Optional --
   -- TODO(dabrady) Verify this is a subset of the given schema.
   local references = args.references or nil
-  if references then assert(type(references) == 'table', 'references must be a table if given') end
-
-  local dbFilename = args.dbFilename or luactiverecord.DATABASE_LOCATION
-  if dbFilename then assert(type(dbFilename) == 'string', 'dbFilename must be a string') end
+  if references then assert(type(references) == 'table', 'references must be a table') end
 
   local recreate = args.recreate or false
   if recreate then assert(type(recreate) == 'boolean', 'recreate must be a boolean') end
@@ -141,30 +151,30 @@ function luactiverecord.construct(args)
   -- Create the backing table for this new record type.
   _createTable{
     name = tableName,
-    db = dbFilename,
+    db = self.__config.database_location,
     schema = schema,
     references = references,
     drop_first = recreate
   }
 
-  local newRecordPlayer = RecordPlayer{
+  local newLedger = Ledger{
     tableName = tableName,
     schema = schema,
-    dbFilename = dbFilename,
+    dbFilename = self.__config.database_location,
     reference_columns = references,
-    referenceRecordPlayers = table.slice(luactiverecord.RECORD_PLAYER_CACHE, table.values(references))
+    referenceLedgers = table.slice(self.LEDGER_CACHE, table.values(references))
   }
 
-  luactiverecord.RECORD_PLAYER_CACHE[tableName] = newRecordPlayer
-  return newRecordPlayer
+  self.LEDGER_CACHE[tableName] = newLedger
+  return newLedger
 end
 
 return setmetatable(
   luactiverecord,
   {
-    -- Allow for this convenient syntax when creating new LUActiveRecords:
-    --   luactiverecord( { ... } )
-    __call = function(self, ...) return self.construct(...) end
+    -- Allow for this convenient syntax when creating new Ledgers:
+    --   luactiverecord{ ... }
+    __call = luactiverecord.construct
   }
 )
 

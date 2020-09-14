@@ -19,9 +19,9 @@ local function isSimpleValue(v)
   return table.contains({'nil', 'string', 'number', 'boolean'}, type(v))
 end
 
-local function _insertNewRow(newRecord)
+local function _insertNewRow(entry)
   -- TODO(dabrady) Consider writing a helper for opening a DB connection w/standard pragmas
-  local db,_,err = sqlite.open(newRecord.__metadata.dbFilename)
+  local db,_,err = sqlite.open(entry.__metadata.dbFilename)
   assert(db, err)
   -- Turn on some pragmas
   table.merge(getmetatable(db), pragmas)
@@ -31,7 +31,7 @@ local function _insertNewRow(newRecord)
   local insertList = 'id'
   local queryParams = ':id'
   local marshaledAttrs = {}
-  for columnName,value in pairs(newRecord.__attributes) do
+  for columnName,value in pairs(entry.__attributes) do
     if columnName ~= 'id' then
       insertList = string.format('%s, %s', insertList, columnName)
       queryParams = string.format('%s, :%s', queryParams, columnName)
@@ -52,7 +52,7 @@ local function _insertNewRow(newRecord)
       INSERT INTO %s(%s)
       VALUES(%s)
     ]],
-    newRecord.__metadata.tableName,
+    entry.__metadata.tableName,
     insertList,
     queryParams)
 
@@ -69,26 +69,26 @@ local function _insertNewRow(newRecord)
   return res
 end
 
-function management.save(record)
-  assert(_insertNewRow(record))
+function management.persist(entry)
+  assert(_insertNewRow(entry))
 
-  -- Reloading here to pull in any changes made by database hooks (e.g. default values)
-  return record:reload()
+  -- Refreshing here to pull in any changes made by database hooks (e.g. default values)
+  return entry:refresh()
 end
 
 
-function management.reload(record)
-  local me = record.__metadata.recordPlayer:find(record.id)
+function management.refresh(entry)
+  local me = entry.__metadata.ledger:find(entry.id)
 
   -- Refresh column values
-  table.merge(record.__attributes, me.__attributes)
+  table.merge(entry.__attributes, me.__attributes)
 
   -- Refresh reference cache
-  if record.__reference_getters then
-    getmetatable(record.__reference_getters):__flush_ref_cache()
+  if entry.__reference_getters then
+    getmetatable(entry.__reference_getters):__flush_ref_cache()
   end
 
-  return record
+  return entry
 end
 
 return management
