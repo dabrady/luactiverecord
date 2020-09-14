@@ -16,7 +16,7 @@ local function _unmarshal(row)
 end
 
 function finders.all(ledger)
-  local db,_,err = sqlite.open(getmetatable(ledger).dbFilename, sqlite.OPEN_READONLY)
+  local db,_,err = sqlite.open(getmetatable(ledger).database_location, sqlite.OPEN_READONLY)
   assert(db, err)
 
   local entries = {}
@@ -30,7 +30,7 @@ function finders.all(ledger)
 end
 
 function finders.where(ledger, attrs, addendum)
-  local db,_,err = sqlite.open(getmetatable(ledger).dbFilename, sqlite.OPEN_READONLY)
+  local db,_,err = sqlite.open(getmetatable(ledger).database_location, sqlite.OPEN_READONLY)
   assert(db, err)
 
   local attrString = ''

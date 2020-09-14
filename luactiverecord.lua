@@ -22,7 +22,7 @@ local Ledger = require('src/ledger')
 
 local function _createTable(args)
   local name = args.name
-  local dbFilename = args.db
+  local database_location = args.database_location
   local schema = args.schema
   local references = args.references
   local drop_first = args.drop_first
@@ -36,7 +36,7 @@ local function _createTable(args)
     end
   end
 
-  local db,_,err = sqlite.open(dbFilename, sqlite.OPEN_READWRITE + sqlite.OPEN_CREATE)
+  local db,_,err = sqlite.open(database_location, sqlite.OPEN_READWRITE + sqlite.OPEN_CREATE)
   assert(db, err)
 
   if drop_first then
@@ -78,7 +78,6 @@ end
 
 -- The base module.
 local luactiverecord = {
-  DATABASE_LOCATION = nil,
   LEDGER_CACHE = {}
 }
 
@@ -107,13 +106,13 @@ function luactiverecord:configure(config)
 end
 
 -- Creates entries in recognized records en masse.
-function luactiverecord:seedDatabase(seedsFilePath)
-  seedsFilePath = seedsFilePath or self.__config.seeds_location
+function luactiverecord:seedDatabase(seeds_location)
+  seeds_location = seeds_location or self.__config.seeds_location
   assert(
-    type(seedsFilePath) == 'string',
+    type(seeds_location) == 'string',
     'must provide an absolute path to a Lua file')
 
-  local seeds = assert(loadfile(seedsFilePath)(self))
+  local seeds = assert(loadfile(seeds_location)(self))
 
   for tableName, data in pairs(seeds) do
     -- print(string.format('[DEBUG] creating %s: %s', tableName, table.format(data, {depth=4})))
@@ -151,7 +150,7 @@ function luactiverecord:construct(args)
   -- Create the backing table for this new record type.
   _createTable{
     name = tableName,
-    db = self.__config.database_location,
+    database_location = self.__config.database_location,
     schema = schema,
     references = references,
     drop_first = recreate
@@ -160,7 +159,7 @@ function luactiverecord:construct(args)
   local newLedger = Ledger{
     tableName = tableName,
     schema = schema,
-    dbFilename = self.__config.database_location,
+    database_location = self.__config.database_location,
     reference_columns = references,
     referenceLedgers = table.slice(self.LEDGER_CACHE, table.values(references))
   }

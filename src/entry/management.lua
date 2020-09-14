@@ -21,7 +21,7 @@ end
 
 local function _insertNewRow(entry)
   -- TODO(dabrady) Consider writing a helper for opening a DB connection w/standard pragmas
-  local db,_,err = sqlite.open(entry.__metadata.dbFilename)
+  local db,_,err = sqlite.open(entry.__metadata.database_location)
   assert(db, err)
   -- Turn on some pragmas
   table.merge(getmetatable(db), pragmas)

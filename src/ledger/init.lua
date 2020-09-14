@@ -31,7 +31,7 @@ local function _newLedger(_, args)
       __index = ledger,
       __call = ledger.newEntry,
 
-      dbFilename = args.dbFilename,
+      database_location = args.database_location,
       reference_columns = args.reference_columns,
       referenceLedgers = args.referenceLedgers
     }
@@ -47,7 +47,7 @@ function ledger:newEntry(valuesByField)
   local entry = {
     -- Store relevant metadata from our ledger on individual entries.
     __metadata = {
-      dbFilename = ledgerMetatable.dbFilename, -- TODO(dabrady) Do I need to do this?
+      database_location = ledgerMetatable.database_location, -- TODO(dabrady) Do I need to do this?
       tableName = self.tableName,
       columns = table.keys(self.schema),
       ledger = self
