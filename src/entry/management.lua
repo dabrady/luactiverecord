@@ -1,10 +1,10 @@
-local sqlite = require('hs.sqlite3')
-local pragmas = require('src/util/db_pragmas')
-local lmarshal = require(--[[src/bin/]]'lmarshal')
+local sqlite = require("hs.sqlite3")
+local pragmas = require("src/util/db_pragmas")
+local lmarshal = require(--[[src/bin/]]"lmarshal")
 
 -- TODO(dabrady) Make these not do global things?
-require('vendors/lua-utils/table')
-require('vendors/lua-utils/string')
+require("vendors/lua-utils/table")
+require("vendors/lua-utils/string")
 
 local management = {}
 
@@ -16,7 +16,7 @@ local management = {}
   - thread
 ]]
 local function _is_simple_value(v)
-  return table.contains({'nil', 'string', 'number', 'boolean'}, type(v))
+  return table.contains({"nil", "string", "number", "boolean"}, type(v))
 end
 
 local function _insert_new_row(entry)
@@ -28,13 +28,13 @@ local function _insert_new_row(entry)
 
   db:enable_foreign_key_constraints()
 
-  local insert_list = 'id'
-  local query_params = ':id'
+  local insert_list = "id"
+  local query_params = ":id"
   local marshaled_attrs = {}
   for column_name,value in pairs(entry.__attributes) do
-    if column_name ~= 'id' then
-      insert_list = string.format('%s, %s', insert_list, column_name)
-      query_params = string.format('%s, :%s', query_params, column_name)
+    if column_name ~= "id" then
+      insert_list = string.format("%s, %s", insert_list, column_name)
+      query_params = string.format("%s, :%s", query_params, column_name)
     end
 
     -- NOTE(dabrady) Complex datatypes are serialized in an encoded fashion so that they can

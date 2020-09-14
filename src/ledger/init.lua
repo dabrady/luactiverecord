@@ -1,12 +1,12 @@
-require('vendors/lua-utils/table')
-local uuid_generator = require('uuid')
+require("vendors/lua-utils/table")
+local uuid_generator = require("uuid")
 
 -- Ledger behavior
-local finders = require('src/ledger/finders')
+local finders = require("src/ledger/finders")
 
 -- Ledger entry behavior
-local reference_getters = require('src/entry/reference_getters')
-local entry_management = require('src/entry/management')
+local reference_getters = require("src/entry/reference_getters")
+local entry_management = require("src/entry/management")
 
 local ledger = {}
 table.merge(ledger, finders)
@@ -77,15 +77,15 @@ function ledger:new_entry(values_by_field)
       -- access from the entry directly in the index function, we'd trigger
       -- an infinite recursion.
       __index = function (entry, k)
-        local refs = rawget(entry, '__reference_getters')
+        local refs = rawget(entry, "__reference_getters")
         return
           -- Check our entry attributes first
-          rawget(entry, '__attributes')[k]
+          rawget(entry, "__attributes")[k]
         -- Allow shorcuts like `r.reference` instead of `r.__reference_getters.reference()`
         -- FIXME This will continue to the next line if `refs[k]()` returns nil. Stahp it
           or ( refs and refs[k] and refs[k]() )
         -- Or finally, delegate to our ledger
-          or rawget(entry, '__metadata').ledger[k]
+          or rawget(entry, "__metadata").ledger[k]
       end,
 
       -- Prioritize attribute setting over direct key insertion.

@@ -4,21 +4,21 @@
 -- project over the rest, and this bit of ugliness gets me that behavior.
 -- `require` passes the absolute path to this module as the second argument
 local with_project_in_path = function(fn) return fn() end
-local project_dir = ''
+local project_dir = ""
 local _,module_path = ...
 if module_path then
-  project_dir = module_path:sub(1, module_path:find('/[^/]*$'))
-  with_project_in_path = assert(loadfile(project_dir..'lib/with_project_in_path.lua'))(project_dir)
+  project_dir = module_path:sub(1, module_path:find("/[^/]*$"))
+  with_project_in_path = assert(loadfile(project_dir.."lib/with_project_in_path.lua"))(project_dir)
 end
 
 return with_project_in_path(function()
 --- START MODULE DEFINITION ---
 
 -- TODO(dabrady) Vendor this dependency, it ties us to a local installation of Hammerspoon
-local sqlite = require('hs.sqlite3')
-require('vendors/lua-utils/table')
+local sqlite = require("hs.sqlite3")
+require("vendors/lua-utils/table")
 
-local Ledger = require('src/ledger')
+local Ledger = require("src/ledger")
 
 local function _create_table(args)
   local name = args.name
@@ -32,7 +32,7 @@ local function _create_table(args)
     -- TODO(dabrady) Research need for index creation here
     for column, reference_table in pairs(references) do
       local constraints = schema[column]
-      schema[column] = constraints..string.format(' REFERENCES %s', reference_table)
+      schema[column] = constraints..string.format(" REFERENCES %s", reference_table)
     end
   end
 
@@ -40,15 +40,15 @@ local function _create_table(args)
   assert(db, err)
 
   if drop_first then
-    db:exec('DROP TABLE '..name)
+    db:exec("DROP TABLE "..name)
   end
 
   -- Build query string
-  local column_definitions = string.format('id %s\n', schema.id)
+  local column_definitions = string.format("id %s\n", schema.id)
   for column_name, constraints in pairs(schema) do
-    if column_name ~= 'id' then
+    if column_name ~= "id" then
       -- TODO(dabrady) this whitespace is unnecessary, only nice for printing out the query
-      column_definitions = string.format('%s        ,%s %s\n', column_definitions, column_name, constraints)
+      column_definitions = string.format("%s        ,%s %s\n", column_definitions, column_name, constraints)
     end
   end
   local query_string = string.format(
@@ -89,8 +89,8 @@ function luactiverecord:configure(config)
   if config.database_location then
     local db_loc = config.database_location
     assert(
-      type(db_loc) == 'string',
-      'must provide an absolute path to an SQLite database file'
+      type(db_loc) == "string",
+      "must provide an absolute path to an SQLite database file"
     )
     self.__config.database_location = db_loc
   end
@@ -98,8 +98,8 @@ function luactiverecord:configure(config)
   if config.seeds_location then
     local seeds_loc = config.seeds_location
     assert(
-      type(seeds_loc) == 'string',
-      'must provide an absolute path to a Lua file'
+      type(seeds_loc) == "string",
+      "must provide an absolute path to a Lua file"
     )
     self.__config.seeds_location = seeds_loc
   end
@@ -109,8 +109,8 @@ end
 function luactiverecord:seed_database(seeds_location)
   seeds_location = seeds_location or self.__config.seeds_location
   assert(
-    type(seeds_location) == 'string',
-    'must provide an absolute path to a Lua file')
+    type(seeds_location) == "string",
+    "must provide an absolute path to a Lua file")
 
   local seeds = assert(loadfile(seeds_location)(self))
 
@@ -126,22 +126,22 @@ function luactiverecord:seed_database(seeds_location)
 end
 
 function luactiverecord:construct(args)
-  assert(type(args) == 'table', 'expected table, given '..type(args))
+  assert(type(args) == "table", "expected table, given "..type(args))
 
   -- Required --
   local table_name = args.table_name
-  assert(type(table_name) == 'string', 'table_name must be a string')
+  assert(type(table_name) == "string", "table_name must be a string")
 
   local schema = args.schema
-  assert(type(schema) == 'table', 'schema must be a table')
+  assert(type(schema) == "table", "schema must be a table")
 
   -- Optional --
   -- TODO(dabrady) Verify this is a subset of the given schema.
   local references = args.references or nil
-  if references then assert(type(references) == 'table', 'references must be a table') end
+  if references then assert(type(references) == "table", "references must be a table") end
 
   local recreate = args.recreate or false
-  if recreate then assert(type(recreate) == 'boolean', 'recreate must be a boolean') end
+  if recreate then assert(type(recreate) == "boolean", "recreate must be a boolean") end
 
   -- Ensure row ID is a UUID
   -- TODO(dabrady) Tell users I'm doing this, don't be so sneaky.

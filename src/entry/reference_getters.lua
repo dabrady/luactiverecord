@@ -33,7 +33,7 @@ function reference_getters.attach(entry, reference_columns, reference_ledgers)
 
       local reference_ledger = assert(
         reference_ledgers[reference_table],
-        'no available ledger for table "'..reference_table..'"'
+        "no available ledger for table '"..reference_table.."'"
       )
 
       -- Do nothing if the foreign key isn't populated.
@@ -53,7 +53,7 @@ function reference_getters.attach(entry, reference_columns, reference_ledgers)
   for foreign_key_column, reference_table in pairs(reference_columns) do
     -- NOTE(dabrady) Assumption: foreign key columns named with '_id' suffix.
     -- TODO(dabrady) Consider making this configurable if it becomes a problem.
-    local ref_name = foreign_key_column:chop('_id')
+    local ref_name = foreign_key_column:chop("_id")
 
     --[[ TODO(dabrady)
       Consider making `__reference_getters` the ref cache itself, and make the cache-buster
