@@ -7,7 +7,7 @@ local function _unmarshal(row)
   return table.map(
     row,
     function(attr,val)
-      if lmarshal.isEncoded(val) then
+      if lmarshal.is_encoded(val) then
         val = lmarshal.decode(val)
       end
       return attr, val
