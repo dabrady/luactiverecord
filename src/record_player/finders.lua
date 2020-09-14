@@ -1,38 +1,36 @@
-local _,_,module = ...
-module = module or {}
-assert(type(module) == 'table', 'must provide a table to extend')
-
 local sqlite = require('hs.sqlite3')
-local marshal = require('marshal')
+local lmarshal = require(--[[src/bin/]]'lmarshal')
 
-local function unmarshal(row)
+local finders = {}
+
+local function _unmarshal(row)
   return table.map(
     row,
     function(attr,val)
-      if marshal.isEncoded(val) then
-        val = marshal.decode(val)
+      if lmarshal.isEncoded(val) then
+        val = lmarshal.decode(val)
       end
       return attr, val
     end
   )
 end
 
-function module:all()
-  local db,_,err = sqlite.open(getmetatable(self).dbFilename, sqlite.OPEN_READONLY)
+function finders.all(recordPlayer)
+  local db,_,err = sqlite.open(getmetatable(recordPlayer).dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
 
   local records = {}
-  for row in db:nrows('SELECT * FROM '..self.tableName) do
+  for row in db:nrows('SELECT * FROM '..recordPlayer.tableName) do
     -- Decode values as we read them out of the DB.
-    table.insert(records, self:new(unmarshal(row)))
+    table.insert(records, recordPlayer:new(_unmarshal(row)))
   end
   db:close()
 
   return records
 end
 
-function module:where(attrs, addendum)
-  local db,_,err = sqlite.open(getmetatable(self).dbFilename, sqlite.OPEN_READONLY)
+function finders.where(recordPlayer, attrs, addendum)
+  local db,_,err = sqlite.open(getmetatable(recordPlayer).dbFilename, sqlite.OPEN_READONLY)
   assert(db, err)
 
   local attrString = ''
@@ -60,11 +58,11 @@ function module:where(attrs, addendum)
   end
 
   local records = {}
-  local queryString = string.format("SELECT * FROM %s WHERE %s", self.tableName, attrString)
+  local queryString = string.format("SELECT * FROM %s WHERE %s", recordPlayer.tableName, attrString)
 
   for row in db:nrows(queryString) do
     -- Decode values as we read them out of the DB.
-    table.insert(records, self:new(unmarshal(row)))
+    table.insert(records, recordPlayer:new(_unmarshal(row)))
   end
 
   db:close()
@@ -72,13 +70,13 @@ function module:where(attrs, addendum)
   return records
 end
 
-function module:find_by(attrs)
-  return module:where(attrs, {limit = 1})[1]
+function finders.find_by(recordPlayer, attrs)
+  return finders.where(recordPlayer, attrs, {limit = 1})[1]
 end
 
-function module:find(id)
-  return module:find_by{id = id}
+function finders.find(recordPlayer, id)
+  return finders.find_by(recordPlayer, {id = id})
 end
 
 -------
-return module
+return finders

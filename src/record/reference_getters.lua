@@ -1,0 +1,72 @@
+local referenceGetters = {}
+
+function referenceGetters.attach(record, reference_columns, referenceRecordPlayers)
+  if not record.__reference_getters then
+    record.__reference_getters = {}
+  end
+
+  setmetatable(
+    record.__reference_getters,
+    -- A basic reference cache and cache-busting mechanism.
+    {
+      REFERENCE_CACHE = {},
+      -- NOTE(dabrady) Opting to clear table instead of recreate to avoid breaking
+      -- any pointers to the cache that might exist.
+      __flush_ref_cache = function(self)
+        for k,_ in pairs(self.REFERENCE_CACHE) do
+          self.REFERENCE_CACHE[k] = nil
+        end
+      end
+    }
+  )
+
+  -- A function that attempts to lookup a record on a reference table whose primary key
+  -- is the value of the given column on this row.
+  local _getter_for = function(foreign_key_column, reference_table, ref_name)
+    return function()
+      -- Check the cache first and short-circuit the lookup if possible.
+      local ref_cache = getmetatable(record.__reference_getters).REFERENCE_CACHE
+      local cached_ref = ref_cache[ref_name]
+      if cached_ref then
+        return cached_ref
+      end
+
+      local referenceRecordPlayer = assert(
+        referenceRecordPlayers[reference_table],
+        'no available record player for table "'..reference_table..'"'
+      )
+
+      -- Do nothing if the foreign key isn't populated.
+      local foreign_key = record[foreign_key_column]
+      if foreign_key then
+        -- NOTE(dabrady) Current implementation of `find` matches against the row `id` column,
+        -- so the assumption here is that all foreign keys are row IDs.
+        ref_cache[ref_name] = referenceRecordPlayer:find(foreign_key)
+        return ref_cache[ref_name]
+      else
+        return nil
+      end
+    end
+  end
+
+  -- Generate a getter for each reference.
+  for foreign_key_column, reference_table in pairs(reference_columns) do
+    -- NOTE(dabrady) Assumption: foreign key columns named with '_id' suffix.
+    -- TODO(dabrady) Consider making this configurable if it becomes a problem.
+    local ref_name = foreign_key_column:chop('_id')
+
+    --[[ TODO(dabrady)
+      Consider making `__reference_getters` the ref cache itself, and make the cache-buster
+      the `__call` event of its metatable, so you can do things like this:
+          record.__reference_getters.person --> Person{}
+          record.__reference_getters(true).person --> clears cache, then looks up, caches, and returns Person{}
+    ]]
+
+    record.__reference_getters[ref_name] = _getter_for(foreign_key_column, reference_table, ref_name)
+  end
+
+  ---
+  return record
+end
+
+return referenceGetters

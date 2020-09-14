@@ -1,19 +1,24 @@
-do
-  local _,filepath = ...
-  local parentdir = filepath:sub(1, filepath:find('/[^/]*$'))
-  package.path = string.format(
-    "%s;%s;%s",
-    string.format("%s?.lua", parentdir),
-    string.format("%svendors/?.lua", parentdir),
-    package.path)
+-- NOTE(dabrady) Lua's `package.path` contains search paths relative to the
+-- working directory at the time the path is searched. This makes sense, but
+-- annoys me: most of the time, I want that search to prioritize the local
+-- project over the rest, and this bit of ugliness gets me that behavior.
+-- `require` passes the absolute path to this module as the second argument
+local withProjectInPath = function(fn) return fn() end
+local projectDir = ''
+local _,modulePath = ...
+if modulePath then
+  projectDir = modulePath:sub(1, modulePath:find('/[^/]*$'))
+  withProjectInPath = assert(loadfile(projectDir..'lib/withProjectInPath.lua'))(projectDir)
 end
--------
 
+return withProjectInPath(function()
+--- START MODULE DEFINITION ---
+
+-- TODO(dabrady) Vendor this dependency, it ties us to a local installation of Hammerspoon
 local sqlite = require('hs.sqlite3')
-local loadmodule = require('lua-utils/loadmodule')
-require('lua-utils/table')
+require('vendors/lua-utils/table')
 
--------
+local RecordPlayer = require('src/record_player')
 
 local function _createTable(args)
   local name = args.name
@@ -42,17 +47,18 @@ local function _createTable(args)
   local columnDefinitions = string.format('id %s\n', schema.id)
   for columnName, constraints in pairs(schema) do
     if columnName ~= 'id' then
+      -- TODO(dabrady) this whitespace is unnecessary, only nice for printing out the query
       columnDefinitions = string.format('%s        ,%s %s\n', columnDefinitions, columnName, constraints)
     end
   end
   local queryString = string.format(
     [[
       CREATE TABLE IF NOT EXISTS %s (
-        %s
+      %s
       ) WITHOUT ROWID;
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_primary_key ON %s(id);
-    ]],
+      ]],
     name,
     columnDefinitions,
     name)
@@ -71,19 +77,12 @@ end
 --------
 
 -- The base module.
-local LUActiveRecord = setmetatable(
-  {
-    DATABASE_LOCATION = nil,
-    RECORD_CACHE = {}
-  },
-  {
-    -- Allow for this convenient syntax when creating new LUActiveRecords:
-    --   LUActiveRecord{ ... }
-    __call = function(self, ...) return self.new(...) end
-  }
-)
+local luactiverecord = {
+  DATABASE_LOCATION = nil,
+  RECORD_PLAYER_CACHE = {}
+}
 
-function LUActiveRecord.setDefaultDatabase(db)
+function luactiverecord.setDefaultDatabase(db)
   local argType = type(db)
   assert(
     argType == 'userdata' or argType == 'string',
@@ -91,29 +90,30 @@ function LUActiveRecord.setDefaultDatabase(db)
   )
 
   if argType == 'userdata' then
-    LUActiveRecord.DATABASE_LOCATION = db:dbFilename('main')
+    luactiverecord.DATABASE_LOCATION = db:dbFilename('main')
   else
-    LUActiveRecord.DATABASE_LOCATION = db
+    luactiverecord.DATABASE_LOCATION = db
   end
 end
 
 -- Creates entries in recognized records en masse.
-function LUActiveRecord.seedDatabase(seedsFilePath)
+function luactiverecord.seedDatabase(seedsFilePath)
   assert(type(seedsFilePath) == 'string', 'must provide an absolute path to your seeds file')
 
-  local seeds = assert(loadfile(seedsFilePath)(LUActiveRecord))
+  local seeds = assert(loadfile(seedsFilePath)(luactiverecord))
+
   for tableName, data in pairs(seeds) do
     -- print(string.format('[DEBUG] creating %s: %s', tableName, table.format(data, {depth=4})))
     for _,datum in ipairs(data) do
-      local activeRecord = LUActiveRecord.RECORD_CACHE[tableName]
-      if activeRecord then
-        activeRecord:create(datum)
+      local recordPlayer = luactiverecord.RECORD_PLAYER_CACHE[tableName]
+      if recordPlayer then
+        recordPlayer:create(datum)
       end
     end
   end
 end
 
-function LUActiveRecord.new(args)
+function luactiverecord.construct(args)
   assert(type(args) == 'table', 'expected table, given '..type(args))
 
   -- Required --
@@ -128,7 +128,7 @@ function LUActiveRecord.new(args)
   local references = args.references or nil
   if references then assert(type(references) == 'table', 'references must be a table if given') end
 
-  local dbFilename = args.dbFilename or LUActiveRecord.DATABASE_LOCATION
+  local dbFilename = args.dbFilename or luactiverecord.DATABASE_LOCATION
   if dbFilename then assert(type(dbFilename) == 'string', 'dbFilename must be a string') end
 
   local recreate = args.recreate or false
@@ -147,36 +147,26 @@ function LUActiveRecord.new(args)
     drop_first = recreate
   }
 
-  local newActiveRecord = setmetatable(
-    {
-      tableName = tableName,
-      schema = schema
-    },
-    {
-      -- TODO(dabrady) Evaluate if LUActiveRecord should be treated as a 'base', or not.
-      -- __index = LUActiveRecord,
+  local newRecordPlayer = RecordPlayer{
+    tableName = tableName,
+    schema = schema,
+    dbFilename = dbFilename,
+    reference_columns = references,
+    referenceRecordPlayers = table.slice(luactiverecord.RECORD_PLAYER_CACHE, table.values(references))
+  }
 
-      -- Allow for this convenient syntax when constructing (but not saving) new records:
-      --   Record{ ... }
-      __call = function(R, ...) return R:new(...) end,
-
-      dbFilename = dbFilename,
-      reference_columns = references,
-      -- NOTE(dabrady) We leverage this when generating accessors for our reference columns.
-      -- If we were to slice this down to a more relevant subset of the cache, we'd run into
-      -- problems when using said accessors if the referenced table didn't exist in the cache
-      -- at the time this Record was created. We avoid this by using a handle to the entire cache.
-      references = LUActiveRecord.RECORD_CACHE
-    }
-  )
-  -- Attach some functionality.
-  loadmodule('src/constructors', newActiveRecord)
-  loadmodule('src/finders', newActiveRecord)
-
-
-  LUActiveRecord.RECORD_CACHE[tableName] = newActiveRecord
-  return newActiveRecord
+  luactiverecord.RECORD_PLAYER_CACHE[tableName] = newRecordPlayer
+  return newRecordPlayer
 end
 
---------
-return LUActiveRecord
+return setmetatable(
+  luactiverecord,
+  {
+    -- Allow for this convenient syntax when creating new LUActiveRecords:
+    --   luactiverecord( { ... } )
+    __call = function(self, ...) return self.construct(...) end
+  }
+)
+
+--- END MODULE DEFINITION ---
+end)
