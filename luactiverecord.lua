@@ -3,22 +3,32 @@
 -- annoys me: most of the time, I want that search to prioritize the local
 -- project over the rest, and this bit of ugliness gets me that behavior.
 -- `require` passes the absolute path to this module as the second argument
-local with_project_in_path = function(fn) return fn() end
-local project_dir = ""
+local old_path = package.path
+local old_cpath = package.cpath
 local _,module_path = ...
 if module_path then
-  project_dir = module_path:sub(1, module_path:find("/[^/]*$"))
-  with_project_in_path = assert(loadfile(project_dir.."lib/with_project_in_path.lua"))(project_dir)
+  local project_dir = module_path:sub(1, module_path:find("/[^/]*$"))
+  -- Temporarily modify loadpath
+  package.path = ""
+    ..project_dir.."?.lua;"
+    ..project_dir.."?/?.lua;"
+    ..project_dir.."?/init.lua;"
+    ..package.path
+  package.cpath = ""
+    ..project_dir.."src/bin/?.so;"
+    ..package.cpath
 end
-
-return with_project_in_path(function()
---- START MODULE DEFINITION ---
 
 -- TODO(dabrady) Vendor this dependency, it ties us to a local installation of Hammerspoon
 local sqlite = require("hs.sqlite3")
 require("vendors/lua-utils/table")
 
 local Ledger = require("src/ledger")
+
+-- The base module.
+local luactiverecord = {
+  LEDGER_CACHE = {}
+}
 
 local function _create_table(args)
   local name = args.name
@@ -73,13 +83,6 @@ local function _create_table(args)
   db:close()
   return res
 end
-
---------
-
--- The base module.
-local luactiverecord = {
-  LEDGER_CACHE = {}
-}
 
 function luactiverecord:configure(config)
   if not self.__config then
@@ -164,11 +167,12 @@ function luactiverecord:construct(args)
     reference_ledgers = table.slice(self.LEDGER_CACHE, table.values(references))
   }
 
+  -- Keep a reference to each constructed ledger
   self.LEDGER_CACHE[table_name] = new_ledger
   return new_ledger
 end
 
-return setmetatable(
+setmetatable(
   luactiverecord,
   {
     -- Allow for this convenient syntax when creating new Ledgers:
@@ -177,5 +181,8 @@ return setmetatable(
   }
 )
 
---- END MODULE DEFINITION ---
-end)
+-- Reset loadpath
+package.path = old_path
+package.cpath = old_cpath
+
+return luactiverecord
