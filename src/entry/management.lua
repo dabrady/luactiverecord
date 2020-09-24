@@ -1,5 +1,6 @@
 local sqlite = require("hs.sqlite3")
 local pragmas = require("src/util/db_pragmas")
+local is_simple_value = require("src/util/is_simple_value")
 local lmarshal = require(--[[src/bin/]]"lmarshal")
 
 -- TODO(dabrady) Make these not do global things?
@@ -7,17 +8,6 @@ require("vendors/lua-utils/table")
 require("vendors/lua-utils/string")
 
 local management = {}
-
---[[
-  NOTE(dabrady) Non-simple datatypes are:
-  - table
-  - function
-  - userdata
-  - thread
-]]
-local function _is_simple_value(v)
-  return table.contains({"nil", "string", "number", "boolean"}, type(v))
-end
 
 local function _insert_new_row(entry)
   -- TODO(dabrady) Consider writing a helper for opening a DB connection w/standard pragmas
@@ -39,7 +29,7 @@ local function _insert_new_row(entry)
 
     -- NOTE(dabrady) Complex datatypes are serialized in an encoded fashion so that they can
     -- be deserialized more accurately later on.
-    if _is_simple_value(value) then
+    if is_simple_value(value) then
       marshaled_attrs[column_name] = value
     else
       -- NOTE(dabrady) Metatables and function environments are not serialized by this.
