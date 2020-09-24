@@ -1,6 +1,6 @@
 local reference_getters = {}
 
-function reference_getters.attach(entry, reference_columns, reference_ledgers)
+function reference_getters.attach(entry, reference_columns, lookup_ledger_for)
   if not entry.__reference_getters then
     entry.__reference_getters = {}
   end
@@ -32,7 +32,7 @@ function reference_getters.attach(entry, reference_columns, reference_ledgers)
       end
 
       local reference_ledger = assert(
-        reference_ledgers[reference_table],
+        lookup_ledger_for(reference_table)
         "no available ledger for table '"..reference_table.."'"
       )
 

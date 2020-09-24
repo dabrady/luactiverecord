@@ -33,7 +33,7 @@ local function _new_ledger(_, args)
 
       database_location = args.database_location,
       reference_columns = args.reference_columns,
-      reference_ledgers = args.reference_ledgers
+      lookup_ledger_for_reference = args.lookup_ledger_for_reference
     }
   )
 end
@@ -43,11 +43,11 @@ function ledger:new_entry(values_by_field)
   local attrs = setmetatable(table.copy(values_by_field), { __pairs = table.orderedPairs })
   attrs.id = attrs.id or uuid()
 
-  local ledger_metatable = getmetatable(self)
+  local metatable = getmetatable(self)
   local entry = {
     -- Store relevant metadata from our ledger on individual entries.
     __metadata = {
-      database_location = ledger_metatable.database_location, -- TODO(dabrady) Do I need to do this?
+      database_location = metatable.database_location, -- TODO(dabrady) Do I need to do this?
       table_name = self.table_name,
       columns = table.keys(self.schema),
       ledger = self
@@ -61,12 +61,12 @@ function ledger:new_entry(values_by_field)
   table.merge(entry, entry_management)
 
   -- Generate getters for any table references this entry has.
-  if ledger_metatable.reference_columns then
+  if metatable.reference_columns then
     -- TODO(dabrady) Use table.merge instead of `attach` API
     reference_getters.attach(
       entry,
-      ledger_metatable.reference_columns,
-      ledger_metatable.reference_ledgers
+      metatable.reference_columns,
+      metatable.lookup_ledger_for_reference
     )
   end
 

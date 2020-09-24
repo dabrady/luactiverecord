@@ -159,12 +159,18 @@ function luactiverecord:construct(args)
     drop_first = recreate
   }
 
+  local reference_tables = references and table.inverse(references) or {}
   local new_ledger = Ledger{
     table_name = table_name,
     schema = schema,
     database_location = self.__config.database_location,
     reference_columns = references,
-    reference_ledgers = table.slice(self.LEDGER_CACHE, table.values(references))
+    -- A lazy-lookup function for the ledgers of referenced tables.
+    -- Being lazy means we don't have to care if the ledger exists until we need it.
+    lookup_ledger_for_reference = function(table_name)
+      assert(reference_tables[table_name], "begone! you have no business with that ledger")
+      return self.LEDGER_CACHE[table_name]
+    end
   }
 
   -- Keep a reference to each constructed ledger
