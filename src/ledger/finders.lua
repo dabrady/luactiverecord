@@ -29,6 +29,8 @@ function finders.all(ledger)
   return entries
 end
 
+-- TODO(dabrady) Support querying complex data types
+-- Need marshal attribute values before composing query string
 function finders.where(ledger, attrs, addendum)
   local db,_,err = sqlite.open(getmetatable(ledger).database_location, sqlite.OPEN_READONLY)
   assert(db, err)
